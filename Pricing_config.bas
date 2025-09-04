@@ -218,7 +218,7 @@ Private Sub ComputeDerivedColumns_AP(ws As Worksheet, lastRow As Long)
         PopulateOutputRow i, outAP, asinIdx, cnt, firstRow, minAJ, minAJRow, maxAL, donorRow, minBEff, minBEffRow, _
                           keyAM, keyAN, keyAO, _
                           hasVarAE, hasVarAJ, hasVarAL, hasVarAM, hasVarAN, hasVarAO, hasVarBB, hasVarBC, hasVarBD, hasVarBE, hasVarBF, hasVarBG, hasVarBH, hasVarBI, _
-                          vS, vAE, vAJ, vAL, vBB, vBC, vBD, vBE, vBF, vBG, vBH, vBI
+                          vS, vAE, vAJ, vAL, vAM, vAN, vAO, vBB, vBC, vBD, vBE, vBF, vBG, vBH, vBI
     Next i
     ws.Range("A2", ws.Cells(lastRow, COL_P_IDX)).Value = outAP
 End Sub
@@ -343,8 +343,8 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
                               hasVarAN() As Boolean, hasVarAO() As Boolean, hasVarBB() As Boolean, hasVarBC() As Boolean, _
                               hasVarBD() As Boolean, hasVarBE() As Boolean, hasVarBF() As Boolean, hasVarBG() As Boolean, _
                               hasVarBH() As Boolean, hasVarBI() As Boolean, vS As Variant, vAE As Variant, vAJ As Variant, _
-                              vAL As Variant, vBB As Variant, vBC As Variant, vBD As Variant, vBE As Variant, vBF As Variant, _
-                              vBG As Variant, vBH As Variant, vBI As Variant)
+                              vAL As Variant, vAM As Variant, vAN As Variant, vAO As Variant, vBB As Variant, vBC As Variant, _
+                              vBD As Variant, vBE As Variant, vBF As Variant, vBG As Variant, vBH As Variant, vBI As Variant)
 
     Dim colA As Long, colB As Long, colC As Long, colD As Long, colE As Long, colF As Long, colG As Long
     Dim colH As Long, colI As Long, colJ As Long, colK As Long, colL As Long, colM As Long, colN As Long, colO As Long, colP As Long
@@ -389,6 +389,9 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
     End If
     outAP(i, colB) = Brow
 
+    Dim keyRow As Long
+    keyRow = IIf(minBEffRow(id) > 0, minBEffRow(id), minAJRow(id))
+
     If hasVarAE(id) Then
         If UCase$(CStr(vAE(i, 1))) <> "YES" Then outAP(i, colA) = "Yes" Else outAP(i, colA) = "SKIP"
     Else
@@ -403,7 +406,12 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
 
     If hasVarAM(id) Then
         If CStr(Brow) = "SKIP" Then
-            outAP(i, colD) = "Product Sphere"
+            Dim dVal As Variant: dVal = vAM(keyRow, 1)
+            If Len(Trim$(CStr(dVal))) > 0 And UCase$(CStr(dVal)) <> "SKIP" Then
+                outAP(i, colD) = dVal
+            Else
+                outAP(i, colD) = "Product Sphere"
+            End If
         Else
             outAP(i, colD) = keyAM(id)
         End If
@@ -411,9 +419,15 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
         outAP(i, colD) = "SKIP"
     End If
 
+    ' Columns E and F depend on the final decision for D.
     If hasVarAN(id) Then
         If CStr(Brow) = "SKIP" Then
-            outAP(i, colE) = "Increase Margin Maintain Unit Sales"
+            Dim eVal As Variant: eVal = vAN(keyRow, 1)
+            If Len(Trim$(CStr(eVal))) > 0 And UCase$(CStr(eVal)) <> "SKIP" Then
+                outAP(i, colE) = eVal
+            Else
+                outAP(i, colE) = "Increase Margin Maintain Unit Sales"
+            End If
         Else
             outAP(i, colE) = keyAN(id)
         End If
@@ -423,7 +437,12 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
 
     If hasVarAO(id) Then
         If CStr(Brow) = "SKIP" Then
-            outAP(i, colF) = ""
+            Dim fVal As Variant: fVal = vAO(keyRow, 1)
+            If Len(Trim$(CStr(fVal))) > 0 And UCase$(CStr(fVal)) <> "SKIP" Then
+                outAP(i, colF) = fVal
+            Else
+                outAP(i, colF) = ""
+            End If
         Else
             outAP(i, colF) = keyAO(id)
         End If
@@ -437,7 +456,6 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
         outAP(i, colG) = "SKIP"
     End If
 
-    Dim keyRow As Long: keyRow = IIf(minBEffRow(id) > 0, minBEffRow(id), minAJRow(id))
     Dim fr As Long: fr = firstRow(id)
     Dim hVal As Variant, iVal As Variant, jVal As Variant, kVal As Variant
     Dim lVal As Variant, mVal As Variant, nVal As Variant
