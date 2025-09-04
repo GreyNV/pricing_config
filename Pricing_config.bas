@@ -355,6 +355,15 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
     Dim pcount As Long: pcount = cnt(id)
     outAP(i, colP) = pcount
 
+    If pcount = 1 Then
+        Dim c As Long
+        For c = colA To colN
+            outAP(i, c) = "SKIP"
+        Next c
+        outAP(i, colO) = "SKIP"
+        Exit Sub
+    End If
+
     Dim uniqAE As Boolean: uniqAE = dAE(id)
     Dim uniqAJ As Boolean: uniqAJ = dAJ(id)
     Dim uniqAL As Boolean: uniqAL = dAL(id)
@@ -371,132 +380,98 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
     Dim uniqBI As Boolean: uniqBI = dBI(id)
 
     Dim Brow As Variant: Brow = "SKIP"
-    If pcount > 1 And uniqAJ Then
+    If uniqAJ Then
         If minBEffRow(id) > 0 Then
             Brow = minBEff(id)
         End If
     End If
     outAP(i, colB) = Brow
 
-    If pcount > 1 Then
-        If uniqAE Then
-            If UCase$(CStr(vAE(i, 1))) <> "YES" Then outAP(i, colA) = "Yes" Else outAP(i, colA) = "SKIP"
-        Else
-            outAP(i, colA) = "SKIP"
-        End If
+    If uniqAE Then
+        If UCase$(CStr(vAE(i, 1))) <> "YES" Then outAP(i, colA) = "Yes" Else outAP(i, colA) = "SKIP"
     Else
         outAP(i, colA) = "SKIP"
     End If
 
-    If pcount > 1 Then
-        If uniqAL Then
-            If maxAL(id) > -1E+307 Then outAP(i, colC) = maxAL(id) Else outAP(i, colC) = "SKIP"
-        Else
-            outAP(i, colC) = "SKIP"
-        End If
+    If uniqAL Then
+        If maxAL(id) > -1E+307 Then outAP(i, colC) = maxAL(id) Else outAP(i, colC) = "SKIP"
     Else
         outAP(i, colC) = "SKIP"
     End If
 
     Dim keyRow As Long: keyRow = IIf(minBEffRow(id) > 0, minBEffRow(id), minAJRow(id))
-    If pcount > 1 Then
-        If uniqAM Then
-            If CStr(Brow) = "SKIP" Then
-                outAP(i, colD) = "Product Sphere"
-            Else
-                outAP(i, colD) = vAM(keyRow, 1)
-            End If
+    If uniqAM Then
+        If CStr(Brow) = "SKIP" Then
+            outAP(i, colD) = "Product Sphere"
         Else
-            outAP(i, colD) = "SKIP"
+            outAP(i, colD) = vAM(keyRow, 1)
         End If
     Else
         outAP(i, colD) = "SKIP"
     End If
 
-    If pcount > 1 Then
-        If uniqAN Then
-            If CStr(Brow) = "SKIP" Then
-                outAP(i, colE) = "Increase Margin Maintain Unit Sales"
-            Else
-                outAP(i, colE) = vAN(keyRow, 1)
-            End If
+    If uniqAN Then
+        If CStr(Brow) = "SKIP" Then
+            outAP(i, colE) = "Increase Margin Maintain Unit Sales"
         Else
-            outAP(i, colE) = "SKIP"
+            outAP(i, colE) = vAN(keyRow, 1)
         End If
     Else
         outAP(i, colE) = "SKIP"
     End If
 
-    If pcount > 1 Then
-        If uniqAO Then
-            If CStr(Brow) = "SKIP" Then
-                outAP(i, colF) = ""
-            Else
-                outAP(i, colF) = vAO(keyRow, 1)
-            End If
+    If uniqAO Then
+        If CStr(Brow) = "SKIP" Then
+            outAP(i, colF) = ""
         Else
-            outAP(i, colF) = "SKIP"
+            outAP(i, colF) = vAO(keyRow, 1)
         End If
     Else
         outAP(i, colF) = "SKIP"
     End If
 
-    If pcount > 1 Then
-        If uniqBB Then
-            If UCase$(CStr(vBB(i, 1))) <> "YES" Then outAP(i, colG) = "Yes" Else outAP(i, colG) = "SKIP"
-        Else
-            outAP(i, colG) = "SKIP"
-        End If
+    If uniqBB Then
+        If UCase$(CStr(vBB(i, 1))) <> "YES" Then outAP(i, colG) = "Yes" Else outAP(i, colG) = "SKIP"
     Else
         outAP(i, colG) = "SKIP"
     End If
 
-    If pcount > 1 Then
-        Dim fr As Long: fr = firstRow(id)
-        Dim hVal As Variant, iVal As Variant, jVal As Variant, kVal As Variant
-        Dim lVal As Variant, mVal As Variant, nVal As Variant
-        If CStr(Brow) = "SKIP" Then
-            hVal = IIf(uniqBC, vBC(fr, 1), "SKIP")
-            iVal = IIf(uniqBD, vBD(fr, 1), "SKIP")
-            jVal = IIf(uniqBE, vBE(fr, 1), "SKIP")
-            kVal = IIf(uniqBF, vBF(fr, 1), "SKIP")
-            lVal = IIf(uniqBG, vBG(fr, 1), "SKIP")
-            mVal = IIf(uniqBH, vBH(fr, 1), "SKIP")
-            nVal = IIf(uniqBI, vBI(fr, 1), "SKIP")
-        Else
-            hVal = IIf(uniqBC, vBC(keyRow, 1), "SKIP")
-            iVal = IIf(uniqBD, vBD(keyRow, 1), "SKIP")
-            jVal = IIf(uniqBE, vBE(keyRow, 1), "SKIP")
-            kVal = IIf(uniqBF, vBF(keyRow, 1), "SKIP")
-            lVal = IIf(uniqBG, vBG(keyRow, 1), "SKIP")
-            mVal = IIf(uniqBH, vBH(keyRow, 1), "SKIP")
-            nVal = IIf(uniqBI, vBI(keyRow, 1), "SKIP")
-        End If
-        If (pcount > 1) And uniqBB And (UCase$(CStr(vBB(i, 1))) <> "YES") And (donorRow(id) > 0) Then
-            hVal = vBC(donorRow(id), 1)
-            iVal = vBD(donorRow(id), 1)
-            jVal = vBE(donorRow(id), 1)
-            kVal = vBF(donorRow(id), 1)
-            lVal = vBG(donorRow(id), 1)
-            mVal = vBH(donorRow(id), 1)
-            nVal = vBI(donorRow(id), 1)
-        End If
-        outAP(i, colH) = hVal
-        outAP(i, colI) = iVal
-        outAP(i, colJ) = jVal
-        outAP(i, colK) = kVal
-        outAP(i, colL) = lVal
-        outAP(i, colM) = mVal
-        outAP(i, colN) = nVal
+    Dim fr As Long: fr = firstRow(id)
+    Dim hVal As Variant, iVal As Variant, jVal As Variant, kVal As Variant
+    Dim lVal As Variant, mVal As Variant, nVal As Variant
+    If CStr(Brow) = "SKIP" Then
+        hVal = IIf(uniqBC, vBC(fr, 1), "SKIP")
+        iVal = IIf(uniqBD, vBD(fr, 1), "SKIP")
+        jVal = IIf(uniqBE, vBE(fr, 1), "SKIP")
+        kVal = IIf(uniqBF, vBF(fr, 1), "SKIP")
+        lVal = IIf(uniqBG, vBG(fr, 1), "SKIP")
+        mVal = IIf(uniqBH, vBH(fr, 1), "SKIP")
+        nVal = IIf(uniqBI, vBI(fr, 1), "SKIP")
     Else
-        outAP(i, colH) = "SKIP"
-        outAP(i, colI) = "SKIP"
-        outAP(i, colJ) = "SKIP"
-        outAP(i, colK) = "SKIP"
-        outAP(i, colL) = "SKIP"
-        outAP(i, colM) = "SKIP"
-        outAP(i, colN) = "SKIP"
+        hVal = IIf(uniqBC, vBC(keyRow, 1), "SKIP")
+        iVal = IIf(uniqBD, vBD(keyRow, 1), "SKIP")
+        jVal = IIf(uniqBE, vBE(keyRow, 1), "SKIP")
+        kVal = IIf(uniqBF, vBF(keyRow, 1), "SKIP")
+        lVal = IIf(uniqBG, vBG(keyRow, 1), "SKIP")
+        mVal = IIf(uniqBH, vBH(keyRow, 1), "SKIP")
+        nVal = IIf(uniqBI, vBI(keyRow, 1), "SKIP")
     End If
+    If uniqBB And (UCase$(CStr(vBB(i, 1))) <> "YES") And (donorRow(id) > 0) Then
+        hVal = vBC(donorRow(id), 1)
+        iVal = vBD(donorRow(id), 1)
+        jVal = vBE(donorRow(id), 1)
+        kVal = vBF(donorRow(id), 1)
+        lVal = vBG(donorRow(id), 1)
+        mVal = vBH(donorRow(id), 1)
+        nVal = vBI(donorRow(id), 1)
+    End If
+    outAP(i, colH) = hVal
+    outAP(i, colI) = iVal
+    outAP(i, colJ) = jVal
+    outAP(i, colK) = kVal
+    outAP(i, colL) = lVal
+    outAP(i, colM) = mVal
+    outAP(i, colN) = nVal
 
     Dim skipCount As Long: skipCount = 0
     Dim c As Long
