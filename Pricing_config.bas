@@ -33,6 +33,46 @@ Private Function MAPPING_PAIRS() As Variant
     )
 End Function
 
+' ========= COLUMN INDEX CACHE =========
+Private Const COL_A_IDX As Long = 1
+Private Const COL_B_IDX As Long = 2
+Private Const COL_C_IDX As Long = 3
+Private Const COL_D_IDX As Long = 4
+Private Const COL_E_IDX As Long = 5
+Private Const COL_F_IDX As Long = 6
+Private Const COL_G_IDX As Long = 7
+Private Const COL_H_IDX As Long = 8
+Private Const COL_I_IDX As Long = 9
+Private Const COL_J_IDX As Long = 10
+Private Const COL_K_IDX As Long = 11
+Private Const COL_L_IDX As Long = 12
+Private Const COL_M_IDX As Long = 13
+Private Const COL_N_IDX As Long = 14
+Private Const COL_O_IDX As Long = 15
+Private Const COL_P_IDX As Long = 16
+Private Const COL_S_IDX As Long = 19
+Private Const COL_T_IDX As Long = 20
+Private Const COL_V_IDX As Long = 22
+Private Const COL_W_IDX As Long = 23
+Private Const COL_X_IDX As Long = 24
+Private Const COL_Y_IDX As Long = 25
+Private Const COL_AL_IDX As Long = 38
+Private Const COL_AM_IDX As Long = 39
+Private Const COL_AN_IDX As Long = 40
+Private Const COL_AO_IDX As Long = 41
+Private Const COL_AP_IDX As Long = 42
+Private Const COL_AQ_IDX As Long = 43
+Private Const COL_AR_IDX As Long = 44
+Private Const COL_AS_IDX As Long = 45
+Private Const COL_BB_IDX As Long = 54
+Private Const COL_BC_IDX As Long = 55
+Private Const COL_BD_IDX As Long = 56
+Private Const COL_BE_IDX As Long = 57
+Private Const COL_BF_IDX As Long = 58
+Private Const COL_BG_IDX As Long = 59
+Private Const COL_BH_IDX As Long = 60
+Private Const COL_BI_IDX As Long = 61
+
 ' ========= BUTTON ENTRY POINTS =========
 Public Sub Btn_ClearPricingData()
     On Error GoTo EH
@@ -54,12 +94,12 @@ Public Sub Btn_UploadAndProcess()
 
     Dim srcPath As String
     srcPath = PickSourceWorkbookPath()
+    Dim wbSrc As Workbook
+    Set wbSrc = Nothing
     If Len(srcPath) = 0 Then GoTo Finally
 
-    Dim wbSrc As Workbook
     Set wbSrc = Workbooks.Open(Filename:=srcPath, ReadOnly:=True)
     ImportAllPricingConfigurationSheets wbSrc, wsTool, wsTool.Range(PASTE_START_CELL)
-    wbSrc.Close SaveChanges:=False
 
     Dim lastRow As Long, lastCol As Long
     UsedBounds wsTool, lastRow, lastCol
@@ -73,6 +113,9 @@ Public Sub Btn_UploadAndProcess()
 EH:
     MsgBox "Upload/Process failed: " & Err.Description, vbExclamation
 Finally:
+    If Not wbSrc Is Nothing Then
+        wbSrc.Close SaveChanges:=False
+    End If
     OptimizeEnd
 End Sub
 
@@ -115,12 +158,17 @@ Private Sub ImportAllPricingConfigurationSheets(wbSrc As Workbook, wsTool As Wor
 End Sub
 
 Private Function SheetDataRange(ws As Worksheet) As Range
+    On Error GoTo EH
     Dim ur As Range
-    On Error Resume Next
     Set ur = ws.UsedRange
-    On Error GoTo 0
     If ur Is Nothing Then Exit Function
     Set SheetDataRange = ur
+    Exit Function
+EH:
+    Set SheetDataRange = Nothing
+    On Error GoTo 0
+    Err.Raise Err.Number, "SheetDataRange", _
+              "Failed to obtain UsedRange for '" & ws.Name & "': " & Err.Description
 End Function
 
 ' ========= ASIN STRUCT COMPUTE =========
@@ -162,16 +210,14 @@ Private Sub ComputeDerivedColumns_AP(ws As Worksheet, lastRow As Long)
                         asinIdx, cnt, firstRow, minAJ, minAJRow, maxAL, donorRow, minBEff, minBEffRow, _
                         dAE, dAJ, dAL, dAM, dAN, dAO, dBB, dBC, dBD, dBE, dBF, dBG, dBH, dBI
 
-    Dim colP As Long: colP = ColLetterToNum("P")
-    Dim outAP As Variant: ReDim outAP(1 To n, 1 To colP)
+    Dim outAP As Variant: ReDim outAP(1 To n, 1 To COL_P_IDX)
     Dim i As Long
     For i = 1 To n
         PopulateOutputRow i, outAP, asinIdx, cnt, firstRow, minAJ, minAJRow, maxAL, donorRow, minBEff, minBEffRow, _
                           dAE, dAJ, dAL, dAM, dAN, dAO, dBB, dBC, dBD, dBE, dBF, dBG, dBH, dBI, _
                           vS, vAE, vAJ, vAL, vAM, vAN, vAO, vBB, vBC, vBD, vBE, vBF, vBG, vBH, vBI
     Next i
-
-    ws.Range("A2", ws.Cells(lastRow, colP)).Value = outAP
+    ws.Range("A2", ws.Cells(lastRow, COL_P_IDX)).Value = outAP
 End Sub
 
 Private Sub BuildAsinAggregates(ByVal n As Long, vS As Variant, vAE As Variant, vAJ As Variant, vAL As Variant, _
@@ -287,22 +333,22 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
 
     Dim colA As Long, colB As Long, colC As Long, colD As Long, colE As Long, colF As Long, colG As Long
     Dim colH As Long, colI As Long, colJ As Long, colK As Long, colL As Long, colM As Long, colN As Long, colO As Long, colP As Long
-    colA = ColLetterToNum("A")
-    colB = ColLetterToNum("B")
-    colC = ColLetterToNum("C")
-    colD = ColLetterToNum("D")
-    colE = ColLetterToNum("E")
-    colF = ColLetterToNum("F")
-    colG = ColLetterToNum("G")
-    colH = ColLetterToNum("H")
-    colI = ColLetterToNum("I")
-    colJ = ColLetterToNum("J")
-    colK = ColLetterToNum("K")
-    colL = ColLetterToNum("L")
-    colM = ColLetterToNum("M")
-    colN = ColLetterToNum("N")
-    colO = ColLetterToNum("O")
-    colP = ColLetterToNum("P")
+    colA = COL_A_IDX
+    colB = COL_B_IDX
+    colC = COL_C_IDX
+    colD = COL_D_IDX
+    colE = COL_E_IDX
+    colF = COL_F_IDX
+    colG = COL_G_IDX
+    colH = COL_H_IDX
+    colI = COL_I_IDX
+    colJ = COL_J_IDX
+    colK = COL_K_IDX
+    colL = COL_L_IDX
+    colM = COL_M_IDX
+    colN = COL_N_IDX
+    colO = COL_O_IDX
+    colP = COL_P_IDX
 
     Dim asin2 As String: asin2 = CStr(vS(i, 1))
     Dim id As Long: id = CLng(asinIdx(asin2))
@@ -481,10 +527,10 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     If lastRow < 2 Then Exit Sub
 
     Dim colN As Long, colS As Long, colBB As Long, colAL As Long
-    colN = ColLetterToNum("N")
-    colS = ColLetterToNum("S")
-    colBB = ColLetterToNum("BB")
-    colAL = ColLetterToNum("AL")
+    colN = COL_N_IDX
+    colS = COL_S_IDX
+    colBB = COL_BB_IDX
+    colAL = COL_AL_IDX
 
     Dim dataFirstCol As Long: dataFirstCol = startCell.Column  ' Q
     Dim dataLastCol As Long: dataLastCol = lastCol             ' rightmost used in tool
@@ -507,8 +553,8 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     For mi = LBound(maps) To UBound(maps)
         mapInfo(mi) = Array( _
             CStr(maps(mi)(0)), CStr(maps(mi)(1)), _
-            ColLetterToNum(CStr(maps(mi)(0))), _
-            ColLetterToNum(CStr(maps(mi)(1))) _
+            ColIndex(CStr(maps(mi)(0))), _
+            ColIndex(CStr(maps(mi)(1))) _
         )
     Next mi
 
@@ -522,8 +568,8 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     ReDim pairDstIdx(LBound(pairLetters) To UBound(pairLetters))
     ReDim pairSrcOffset(LBound(pairLetters) To UBound(pairLetters))
     For mi = LBound(pairLetters) To UBound(pairLetters)
-        pairSrcIdx(mi) = ColLetterToNum(CStr(pairLetters(mi)(0)))
-        pairDstIdx(mi) = ColLetterToNum(CStr(pairLetters(mi)(1)))
+        pairSrcIdx(mi) = ColIndex(CStr(pairLetters(mi)(0)))
+        pairDstIdx(mi) = ColIndex(CStr(pairLetters(mi)(1)))
         pairSrcOffset(mi) = pairSrcIdx(mi) - ColLetterToNum("BC") + 1
     Next mi
 
@@ -630,8 +676,8 @@ Private Sub EnsureMappedHeadersFromTool(wsTool As Worksheet, wsOut As Worksheet,
     For i = LBound(mapPairs) To UBound(mapPairs)
         Dim toolCol As String: toolCol = CStr(mapPairs(i)(0))
         Dim destCol As String:  destCol = CStr(mapPairs(i)(1))
-        Dim hdr As String: hdr = CStr(wsTool.Cells(1, ColLetterToNum(toolCol)).Value)
-        If Len(hdr) > 0 Then wsOut.Cells(1, ColLetterToNum(destCol)).Value = hdr
+        Dim hdr As String: hdr = CStr(wsTool.Cells(1, ColIndex(toolCol)).Value)
+        If Len(hdr) > 0 Then wsOut.Cells(1, ColIndex(destCol)).Value = hdr
     Next i
 End Sub
 
@@ -647,17 +693,29 @@ End Function
 ' ========= NOTES (optional) =========
 Private Sub AddCellNote(ByVal tgt As Range, ByVal msg As String)
     If DISABLE_NOTES Then Exit Sub
-    On Error Resume Next
+
     ' Delete any existing legacy comment
     If Not tgt.Comment Is Nothing Then tgt.Comment.Delete
+
     ' Try legacy comment first
+    Dim firstErr As Long
+    On Error Resume Next
     tgt.AddComment msg
-    If Err.Number <> 0 Then
-        Err.Clear
-        ' Fallback to threaded comment (newer Excel)
-        tgt.AddCommentThreaded msg
-    End If
+    firstErr = Err.Number
     On Error GoTo 0
+
+    If firstErr <> 0 Then
+        ' Fallback to threaded comment (newer Excel)
+        Dim secondErr As Long, secondDesc As String
+        On Error Resume Next
+        tgt.AddCommentThreaded msg
+        secondErr = Err.Number
+        secondDesc = Err.Description
+        On Error GoTo 0
+        If secondErr <> 0 Then
+            Err.Raise secondErr, "AddCellNote", "Failed to add note: " & secondDesc
+        End If
+    End If
 End Sub
 
 Private Sub NoteReplace(ByVal tgt As Range, ByVal oldVal As Variant, ByVal newVal As Variant, ByVal reason As String)
@@ -693,6 +751,51 @@ Private Function ColLetterToNum(ByVal colLetter As String) As Long
         n = n * 26 + (Asc(Mid$(colLetter, i, 1)) - 64)
     Next i
     ColLetterToNum = n
+End Function
+
+Private Function ColIndex(ByVal colLetter As String) As Long
+    Select Case UCase$(colLetter)
+        Case "A": ColIndex = COL_A_IDX
+        Case "B": ColIndex = COL_B_IDX
+        Case "C": ColIndex = COL_C_IDX
+        Case "D": ColIndex = COL_D_IDX
+        Case "E": ColIndex = COL_E_IDX
+        Case "F": ColIndex = COL_F_IDX
+        Case "G": ColIndex = COL_G_IDX
+        Case "H": ColIndex = COL_H_IDX
+        Case "I": ColIndex = COL_I_IDX
+        Case "J": ColIndex = COL_J_IDX
+        Case "K": ColIndex = COL_K_IDX
+        Case "L": ColIndex = COL_L_IDX
+        Case "M": ColIndex = COL_M_IDX
+        Case "N": ColIndex = COL_N_IDX
+        Case "O": ColIndex = COL_O_IDX
+        Case "P": ColIndex = COL_P_IDX
+        Case "S": ColIndex = COL_S_IDX
+        Case "T": ColIndex = COL_T_IDX
+        Case "V": ColIndex = COL_V_IDX
+        Case "W": ColIndex = COL_W_IDX
+        Case "X": ColIndex = COL_X_IDX
+        Case "Y": ColIndex = COL_Y_IDX
+        Case "AL": ColIndex = COL_AL_IDX
+        Case "AM": ColIndex = COL_AM_IDX
+        Case "AN": ColIndex = COL_AN_IDX
+        Case "AO": ColIndex = COL_AO_IDX
+        Case "AP": ColIndex = COL_AP_IDX
+        Case "AQ": ColIndex = COL_AQ_IDX
+        Case "AR": ColIndex = COL_AR_IDX
+        Case "AS": ColIndex = COL_AS_IDX
+        Case "BB": ColIndex = COL_BB_IDX
+        Case "BC": ColIndex = COL_BC_IDX
+        Case "BD": ColIndex = COL_BD_IDX
+        Case "BE": ColIndex = COL_BE_IDX
+        Case "BF": ColIndex = COL_BF_IDX
+        Case "BG": ColIndex = COL_BG_IDX
+        Case "BH": ColIndex = COL_BH_IDX
+        Case "BI": ColIndex = COL_BI_IDX
+        Case Else
+            ColIndex = ColLetterToNum(colLetter)
+    End Select
 End Function
 
 Private Sub OptimizeStart()
