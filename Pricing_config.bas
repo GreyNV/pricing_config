@@ -450,10 +450,13 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
         outAP(i, colF) = "SKIP"
     End If
 
-    If hasVarBB(id) Then
-        If UCase$(CStr(vBB(i, 1))) <> "YES" Then outAP(i, colG) = "Yes" Else outAP(i, colG) = "SKIP"
-    Else
-        outAP(i, colG) = "SKIP"
+    Dim validDonor As Boolean
+    validDonor = False
+    If donorRow(id) > 0 Then
+        Dim donorDate As Variant: donorDate = vBH(donorRow(id), 1)
+        If IsDate(donorDate) Then
+            If CDate(donorDate) > Date Then validDonor = True
+        End If
     End If
 
     Dim fr As Long: fr = firstRow(id)
@@ -476,7 +479,9 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
         mVal = IIf(hasVarBH(id), vBH(keyRow, 1), "SKIP")
         nVal = IIf(hasVarBI(id), vBI(keyRow, 1), "SKIP")
     End If
-    If hasVarBB(id) And (UCase$(CStr(vBB(i, 1))) <> "YES") And (donorRow(id) > 0) Then
+
+    If hasVarBB(id) And validDonor And (UCase$(CStr(vBB(i, 1))) <> "YES") Then
+        outAP(i, colG) = "Yes"
         hVal = vBC(donorRow(id), 1)
         iVal = vBD(donorRow(id), 1)
         jVal = vBE(donorRow(id), 1)
@@ -484,6 +489,8 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
         lVal = vBG(donorRow(id), 1)
         mVal = vBH(donorRow(id), 1)
         nVal = vBI(donorRow(id), 1)
+    Else
+        outAP(i, colG) = "SKIP"
     End If
     outAP(i, colH) = hVal
     outAP(i, colI) = iVal
