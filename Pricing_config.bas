@@ -162,7 +162,8 @@ Private Sub ComputeDerivedColumns_AP(ws As Worksheet, lastRow As Long)
                         asinIdx, cnt, firstRow, minAJ, minAJRow, maxAL, donorRow, minBEff, minBEffRow, _
                         dAE, dAJ, dAL, dAM, dAN, dAO, dBB, dBC, dBD, dBE, dBF, dBG, dBH, dBI
 
-    Dim outAP As Variant: ReDim outAP(1 To n, 1 To ColLetterToNum("P"))
+    Dim colP As Long: colP = ColLetterToNum("P")
+    Dim outAP As Variant: ReDim outAP(1 To n, 1 To colP)
     Dim i As Long
     For i = 1 To n
         PopulateOutputRow i, outAP, asinIdx, cnt, firstRow, minAJ, minAJRow, maxAL, donorRow, minBEff, minBEffRow, _
@@ -170,7 +171,7 @@ Private Sub ComputeDerivedColumns_AP(ws As Worksheet, lastRow As Long)
                           vS, vAE, vAJ, vAL, vAM, vAN, vAO, vBB, vBC, vBD, vBE, vBF, vBG, vBH, vBI
     Next i
 
-    ws.Range("A2", ws.Cells(lastRow, ColLetterToNum("P"))).Value = outAP
+    ws.Range("A2", ws.Cells(lastRow, colP)).Value = outAP
 End Sub
 
 Private Sub BuildAsinAggregates(ByVal n As Long, vS As Variant, vAE As Variant, vAJ As Variant, vAL As Variant, _
@@ -284,10 +285,29 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
                               vBC As Variant, vBD As Variant, vBE As Variant, vBF As Variant, vBG As Variant, _
                               vBH As Variant, vBI As Variant)
 
+    Dim colA As Long, colB As Long, colC As Long, colD As Long, colE As Long, colF As Long, colG As Long
+    Dim colH As Long, colI As Long, colJ As Long, colK As Long, colL As Long, colM As Long, colN As Long, colO As Long, colP As Long
+    colA = ColLetterToNum("A")
+    colB = ColLetterToNum("B")
+    colC = ColLetterToNum("C")
+    colD = ColLetterToNum("D")
+    colE = ColLetterToNum("E")
+    colF = ColLetterToNum("F")
+    colG = ColLetterToNum("G")
+    colH = ColLetterToNum("H")
+    colI = ColLetterToNum("I")
+    colJ = ColLetterToNum("J")
+    colK = ColLetterToNum("K")
+    colL = ColLetterToNum("L")
+    colM = ColLetterToNum("M")
+    colN = ColLetterToNum("N")
+    colO = ColLetterToNum("O")
+    colP = ColLetterToNum("P")
+
     Dim asin2 As String: asin2 = CStr(vS(i, 1))
     Dim id As Long: id = CLng(asinIdx(asin2))
     Dim pcount As Long: pcount = cnt(id)
-    outAP(i, ColLetterToNum("P")) = pcount
+    outAP(i, colP) = pcount
 
     Dim uniqAE As Boolean: uniqAE = dAE(id)
     Dim uniqAJ As Boolean: uniqAJ = dAJ(id)
@@ -310,79 +330,79 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
             Brow = minBEff(id)
         End If
     End If
-    outAP(i, ColLetterToNum("B")) = Brow
+    outAP(i, colB) = Brow
 
     If pcount > 1 Then
         If uniqAE Then
-            If UCase$(CStr(vAE(i, 1))) <> "YES" Then outAP(i, ColLetterToNum("A")) = "Yes" Else outAP(i, ColLetterToNum("A")) = "SKIP"
+            If UCase$(CStr(vAE(i, 1))) <> "YES" Then outAP(i, colA) = "Yes" Else outAP(i, colA) = "SKIP"
         Else
-            outAP(i, ColLetterToNum("A")) = "SKIP"
+            outAP(i, colA) = "SKIP"
         End If
     Else
-        outAP(i, ColLetterToNum("A")) = "SKIP"
+        outAP(i, colA) = "SKIP"
     End If
 
     If pcount > 1 Then
         If uniqAL Then
-            If maxAL(id) > -1E+307 Then outAP(i, ColLetterToNum("C")) = maxAL(id) Else outAP(i, ColLetterToNum("C")) = "SKIP"
+            If maxAL(id) > -1E+307 Then outAP(i, colC) = maxAL(id) Else outAP(i, colC) = "SKIP"
         Else
-            outAP(i, ColLetterToNum("C")) = "SKIP"
+            outAP(i, colC) = "SKIP"
         End If
     Else
-        outAP(i, ColLetterToNum("C")) = "SKIP"
+        outAP(i, colC) = "SKIP"
     End If
 
     Dim keyRow As Long: keyRow = IIf(minBEffRow(id) > 0, minBEffRow(id), minAJRow(id))
     If pcount > 1 Then
         If uniqAM Then
             If CStr(Brow) = "SKIP" Then
-                outAP(i, ColLetterToNum("D")) = "Product Sphere"
+                outAP(i, colD) = "Product Sphere"
             Else
-                outAP(i, ColLetterToNum("D")) = vAM(keyRow, 1)
+                outAP(i, colD) = vAM(keyRow, 1)
             End If
         Else
-            outAP(i, ColLetterToNum("D")) = "SKIP"
+            outAP(i, colD) = "SKIP"
         End If
     Else
-        outAP(i, ColLetterToNum("D")) = "SKIP"
+        outAP(i, colD) = "SKIP"
     End If
 
     If pcount > 1 Then
         If uniqAN Then
             If CStr(Brow) = "SKIP" Then
-                outAP(i, ColLetterToNum("E")) = "Increase Margin Maintain Unit Sales"
+                outAP(i, colE) = "Increase Margin Maintain Unit Sales"
             Else
-                outAP(i, ColLetterToNum("E")) = vAN(keyRow, 1)
+                outAP(i, colE) = vAN(keyRow, 1)
             End If
         Else
-            outAP(i, ColLetterToNum("E")) = "SKIP"
+            outAP(i, colE) = "SKIP"
         End If
     Else
-        outAP(i, ColLetterToNum("E")) = "SKIP"
+        outAP(i, colE) = "SKIP"
     End If
 
     If pcount > 1 Then
         If uniqAO Then
             If CStr(Brow) = "SKIP" Then
-                outAP(i, ColLetterToNum("F")) = ""
+                outAP(i, colF) = ""
             Else
-                outAP(i, ColLetterToNum("F")) = vAO(keyRow, 1)
+                outAP(i, colF) = vAO(keyRow, 1)
             End If
         Else
-            outAP(i, ColLetterToNum("F")) = "SKIP"
+            outAP(i, colF) = "SKIP"
         End If
     Else
-        outAP(i, ColLetterToNum("F")) = "SKIP"
+        outAP(i, colF) = "SKIP"
     End If
 
     If pcount > 1 Then
         If uniqBB Then
-            If UCase$(CStr(vBB(i, 1))) <> "YES" Then outAP(i, ColLetterToNum("G")) = "Yes" Else outAP(i, ColLetterToNum("G")) = "SKIP"
+            If UCase$(CStr(vBB(i, 1))) <> "YES" Then outAP(i, colG) = "Yes" Else outAP(i, colG) = "SKIP"
         Else
-            outAP(i, ColLetterToNum("G")) = "SKIP"
+            outAP(i, colG) = "SKIP"
         End If
     Else
-        outAP(i, ColLetterToNum("G")) = "SKIP"
+        outAP(i, colG) = "SKIP"
     End If
 
     If pcount > 1 Then
@@ -415,32 +435,32 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
             mVal = vBH(donorRow(id), 1)
             nVal = vBI(donorRow(id), 1)
         End If
-        outAP(i, ColLetterToNum("H")) = hVal
-        outAP(i, ColLetterToNum("I")) = iVal
-        outAP(i, ColLetterToNum("J")) = jVal
-        outAP(i, ColLetterToNum("K")) = kVal
-        outAP(i, ColLetterToNum("L")) = lVal
-        outAP(i, ColLetterToNum("M")) = mVal
-        outAP(i, ColLetterToNum("N")) = nVal
+        outAP(i, colH) = hVal
+        outAP(i, colI) = iVal
+        outAP(i, colJ) = jVal
+        outAP(i, colK) = kVal
+        outAP(i, colL) = lVal
+        outAP(i, colM) = mVal
+        outAP(i, colN) = nVal
     Else
-        outAP(i, ColLetterToNum("H")) = "SKIP"
-        outAP(i, ColLetterToNum("I")) = "SKIP"
-        outAP(i, ColLetterToNum("J")) = "SKIP"
-        outAP(i, ColLetterToNum("K")) = "SKIP"
-        outAP(i, ColLetterToNum("L")) = "SKIP"
-        outAP(i, ColLetterToNum("M")) = "SKIP"
-        outAP(i, ColLetterToNum("N")) = "SKIP"
+        outAP(i, colH) = "SKIP"
+        outAP(i, colI) = "SKIP"
+        outAP(i, colJ) = "SKIP"
+        outAP(i, colK) = "SKIP"
+        outAP(i, colL) = "SKIP"
+        outAP(i, colM) = "SKIP"
+        outAP(i, colN) = "SKIP"
     End If
 
     Dim skipCount As Long: skipCount = 0
     Dim c As Long
-    For c = ColLetterToNum("A") To ColLetterToNum("N")
+    For c = colA To colN
         If UCase$(CStr(outAP(i, c))) = "SKIP" Or IsEmpty(outAP(i, c)) Then skipCount = skipCount + 1
     Next c
-    If skipCount = (ColLetterToNum("N") - ColLetterToNum("A") + 1) Then
-        outAP(i, ColLetterToNum("O")) = "SKIP"
+    If skipCount = (colN - colA + 1) Then
+        outAP(i, colO) = "SKIP"
     Else
-        outAP(i, ColLetterToNum("O")) = "FILTER"
+        outAP(i, colO) = "FILTER"
     End If
 End Sub
 
@@ -460,6 +480,12 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     UsedBounds wsTool, lastRow, lastCol
     If lastRow < 2 Then Exit Sub
 
+    Dim colN As Long, colS As Long, colBB As Long, colAL As Long
+    colN = ColLetterToNum("N")
+    colS = ColLetterToNum("S")
+    colBB = ColLetterToNum("BB")
+    colAL = ColLetterToNum("AL")
+
     Dim dataFirstCol As Long: dataFirstCol = startCell.Column  ' Q
     Dim dataLastCol As Long:  dataLastCol = lastCol            ' rightmost used in tool
     Dim width As Long: width = dataLastCol - dataFirstCol + 1
@@ -475,15 +501,39 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     Dim maps As Variant: maps = MAPPING_PAIRS
     EnsureMappedHeadersFromTool wsTool, wsOut, maps
 
+    Dim mapInfo As Variant
+    ReDim mapInfo(LBound(maps) To UBound(maps))
+    Dim mi As Long
+    For mi = LBound(maps) To UBound(maps)
+        mapInfo(mi) = Array( _
+            CStr(maps(mi)(0)), CStr(maps(mi)(1)), _
+            ColLetterToNum(CStr(maps(mi)(0))), _
+            ColLetterToNum(CStr(maps(mi)(1))) _
+        )
+    Next mi
+
+    Dim pairLetters As Variant
+    pairLetters = Array( _
+        Array("BC", "AM"), Array("BD", "AN"), Array("BE", "AO"), _
+        Array("BF", "AP"), Array("BG", "AQ"), Array("BH", "AR"), Array("BI", "AS") _
+    )
+    Dim pairSrcIdx() As Long, pairDstIdx() As Long
+    ReDim pairSrcIdx(LBound(pairLetters) To UBound(pairLetters))
+    ReDim pairDstIdx(LBound(pairLetters) To UBound(pairLetters))
+    For mi = LBound(pairLetters) To UBound(pairLetters)
+        pairSrcIdx(mi) = ColLetterToNum(CStr(pairLetters(mi)(0)))
+        pairDstIdx(mi) = ColLetterToNum(CStr(pairLetters(mi)(1)))
+    Next mi
+
     ' Preload tool blocks
     Dim toolVals As Variant, filterVals As Variant
-    toolVals = wsTool.Range("A2", wsTool.Cells(lastRow, ColLetterToNum("N"))).Value2
+    toolVals = wsTool.Range("A2", wsTool.Cells(lastRow, colN)).Value2
     filterVals = wsTool.Range(FILTER_COL_LETTER & 2, FILTER_COL_LETTER & lastRow).Value2
 
     ' Donor map per ASIN (first BB=="Yes")
     Dim vS As Variant, vBB As Variant
-    vS = wsTool.Range("S2", wsTool.Cells(lastRow, ColLetterToNum("S"))).Value2
-    vBB = wsTool.Range("BB2", wsTool.Cells(lastRow, ColLetterToNum("BB"))).Value2
+    vS = wsTool.Range("S2", wsTool.Cells(lastRow, colS)).Value2
+    vBB = wsTool.Range("BB2", wsTool.Cells(lastRow, colBB)).Value2
     Dim donorByAsin As Object: Set donorByAsin = CreateObject("Scripting.Dictionary"): donorByAsin.CompareMode = vbTextCompare
     Dim i As Long
     For i = 2 To lastRow
@@ -501,18 +551,15 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
 
             ' 2) Overlay mapped values from tool A:N into destination columns unless SKIP (and add notes if changed)
             Dim m As Long
-            For m = LBound(maps) To UBound(maps)
-                Dim tCol As String: tCol = CStr(maps(m)(0))
-                Dim dCol As String: dCol = CStr(maps(m)(1))
-                Dim tIdx As Long: tIdx = ColLetterToNum(tCol)
-                Dim v As Variant: v = toolVals(r - 1, tIdx)
+            For m = LBound(mapInfo) To UBound(mapInfo)
+                Dim v As Variant: v = toolVals(r - 1, mapInfo(m)(2))
                 If Not IsSkipValue(v) Then
-                    Dim dc As Long: dc = ColLetterToNum(dCol)
+                    Dim dc As Long: dc = mapInfo(m)(3)
                     Dim oldv As Variant: oldv = wsOut.Cells(outRow, dc).Value
                     If CStr(oldv) <> CStr(v) Then
                         wsOut.Cells(outRow, dc).Value = v
                         NoteReplace wsOut.Cells(outRow, dc), oldv, v, _
-                                   "Source: Tool " & tCol & " ? Export " & dCol
+                                   "Source: Tool " & mapInfo(m)(0) & " ? Export " & mapInfo(m)(1)
                     Else
                         wsOut.Cells(outRow, dc).Value = v
                     End If
@@ -520,26 +567,19 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
             Next m
 
             ' 3) If AL (mapped from G) is "Yes", force AM:AS from donor row's H..N
-            If UCase$(Trim$(CStr(wsOut.Cells(outRow, ColLetterToNum("AL")).Value))) = "YES" Then
-                Dim asinCurr As String: asinCurr = CStr(wsTool.Cells(r, ColLetterToNum("S")).Value)
+            If UCase$(Trim$(CStr(wsOut.Cells(outRow, colAL).Value))) = "YES" Then
+                Dim asinCurr As String: asinCurr = CStr(wsTool.Cells(r, colS).Value)
                 If Len(asinCurr) > 0 And donorByAsin.Exists(asinCurr) Then
                     Dim dRow As Long: dRow = CLng(donorByAsin(asinCurr))
-                    Dim pairArr As Variant
-                    pairArr = Array( _
-                        Array("BC", "AM"), Array("BD", "AN"), Array("BE", "AO"), _
-                        Array("BF", "AP"), Array("BG", "AQ"), Array("BH", "AR"), Array("BI", "AS") _
-                    )
                     Dim u As Long
-                    For u = LBound(pairArr) To UBound(pairArr)
-                        Dim srcL As String: srcL = CStr(pairArr(u)(0))
-                        Dim dstL As String: dstL = CStr(pairArr(u)(1))
-                        Dim dstC As Long: dstC = ColLetterToNum(dstL)
-                        Dim newVal As Variant: newVal = wsTool.Cells(dRow, ColLetterToNum(srcL)).Value
+                    For u = LBound(pairSrcIdx) To UBound(pairSrcIdx)
+                        Dim dstC As Long: dstC = pairDstIdx(u)
+                        Dim newVal As Variant: newVal = wsTool.Cells(dRow, pairSrcIdx(u)).Value
                         Dim prevVal As Variant: prevVal = wsOut.Cells(outRow, dstC).Value
                         If CStr(prevVal) <> CStr(newVal) Then
                             wsOut.Cells(outRow, dstC).Value = newVal
                             NoteReplace wsOut.Cells(outRow, dstC), prevVal, newVal, _
-                                       "Source: Donor " & srcL & " ? Export " & dstL & " (AL=Yes)"
+                                       "Source: Donor " & pairLetters(u)(0) & " ? Export " & pairLetters(u)(1) & " (AL=Yes)"
                         Else
                             wsOut.Cells(outRow, dstC).Value = newVal
                         End If
