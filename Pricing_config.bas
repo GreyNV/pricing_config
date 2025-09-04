@@ -118,12 +118,17 @@ Private Sub ImportAllPricingConfigurationSheets(wbSrc As Workbook, wsTool As Wor
 End Sub
 
 Private Function SheetDataRange(ws As Worksheet) As Range
+    On Error GoTo EH
     Dim ur As Range
-    On Error Resume Next
     Set ur = ws.UsedRange
-    On Error GoTo 0
     If ur Is Nothing Then Exit Function
     Set SheetDataRange = ur
+    Exit Function
+EH:
+    Set SheetDataRange = Nothing
+    On Error GoTo 0
+    Err.Raise Err.Number, "SheetDataRange", _
+              "Failed to obtain UsedRange for '" & ws.Name & "': " & Err.Description
 End Function
 
 ' ========= ASIN STRUCT COMPUTE =========
@@ -631,17 +636,29 @@ End Function
 ' ========= NOTES (optional) =========
 Private Sub AddCellNote(ByVal tgt As Range, ByVal msg As String)
     If DISABLE_NOTES Then Exit Sub
-    On Error Resume Next
+
     ' Delete any existing legacy comment
     If Not tgt.Comment Is Nothing Then tgt.Comment.Delete
+
     ' Try legacy comment first
+    Dim firstErr As Long
+    On Error Resume Next
     tgt.AddComment msg
-    If Err.Number <> 0 Then
-        Err.Clear
-        ' Fallback to threaded comment (newer Excel)
-        tgt.AddCommentThreaded msg
-    End If
+    firstErr = Err.Number
     On Error GoTo 0
+
+    If firstErr <> 0 Then
+        ' Fallback to threaded comment (newer Excel)
+        Dim secondErr As Long, secondDesc As String
+        On Error Resume Next
+        tgt.AddCommentThreaded msg
+        secondErr = Err.Number
+        secondDesc = Err.Description
+        On Error GoTo 0
+        If secondErr <> 0 Then
+            Err.Raise secondErr, "AddCellNote", "Failed to add note: " & secondDesc
+        End If
+    End If
 End Sub
 
 Private Sub NoteReplace(ByVal tgt As Range, ByVal oldVal As Variant, ByVal newVal As Variant, ByVal reason As String)
