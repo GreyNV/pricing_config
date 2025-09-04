@@ -573,11 +573,13 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
         Array("BF", "AP"), Array("BG", "AQ"), Array("BH", "AR"), Array("BI", "AS") _
     )
     Dim pairSrcIdx As Variant, pairDstIdx As Variant, pairSrcOffset() As Long
+    Dim bhIdx As Long
     pairSrcIdx = Array(COL_BC_IDX, COL_BD_IDX, COL_BE_IDX, COL_BF_IDX, COL_BG_IDX, COL_BH_IDX, COL_BI_IDX)
     pairDstIdx = Array(COL_AM_IDX, COL_AN_IDX, COL_AO_IDX, COL_AP_IDX, COL_AQ_IDX, COL_AR_IDX, COL_AS_IDX)
     ReDim pairSrcOffset(LBound(pairSrcIdx) To UBound(pairSrcIdx))
     For mi = LBound(pairSrcIdx) To UBound(pairSrcIdx)
         pairSrcOffset(mi) = pairSrcIdx(mi) - colBC + 1
+        If pairSrcIdx(mi) = COL_BH_IDX Then bhIdx = mi
     Next mi
 
     ' Preload tool blocks
@@ -636,19 +638,33 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
                 Dim asinCurr As String: asinCurr = CStr(vS(r, 1))
                 If Len(asinCurr) > 0 And donorByAsin.Exists(asinCurr) Then
                     Dim dIdx As Long: dIdx = CLng(donorByAsin(asinCurr))
-                    Dim u As Long
-                    For u = LBound(pairSrcIdx) To UBound(pairSrcIdx)
-                        Dim dstC As Long: dstC = pairDstIdx(u)
-                        Dim newVal As Variant: newVal = donorSrcVals(dIdx, pairSrcOffset(u))
-                        Dim prevVal As Variant: prevVal = outArr(outIdx, dstC)
-                        If CStr(prevVal) <> CStr(newVal) Then
-                            outArr(outIdx, dstC) = newVal
-                            notes.Add Array(outIdx + 1, dstC, prevVal, newVal, _
-                                             "Source: Donor " & pairLetters(u)(0) & " ? Export " & pairLetters(u)(1) & " (AL=Yes)")
-                        Else
-                            outArr(outIdx, dstC) = newVal
-                        End If
-                    Next u
+                    Dim donorEnd As Variant: donorEnd = donorSrcVals(dIdx, pairSrcOffset(bhIdx))
+                    Dim validDonor As Boolean: validDonor = False
+                    If IsDate(donorEnd) Then
+                        If CDate(donorEnd) > Date Then validDonor = True
+                    End If
+                    If validDonor Then
+                        Dim u As Long
+                        For u = LBound(pairSrcIdx) To UBound(pairSrcIdx)
+                            Dim dstC As Long: dstC = pairDstIdx(u)
+                            Dim newVal As Variant
+                            If pairSrcIdx(u) = COL_BF_IDX Then
+                                newVal = Date + 1
+                            ElseIf pairSrcIdx(u) = COL_BH_IDX Then
+                                newVal = donorEnd
+                            Else
+                                newVal = donorSrcVals(dIdx, pairSrcOffset(u))
+                            End If
+                            Dim prevVal As Variant: prevVal = outArr(outIdx, dstC)
+                            If CStr(prevVal) <> CStr(newVal) Then
+                                outArr(outIdx, dstC) = newVal
+                                notes.Add Array(outIdx + 1, dstC, prevVal, newVal, _
+                                                 "Source: Donor " & pairLetters(u)(0) & " ? Export " & pairLetters(u)(1) & " (AL=Yes)")
+                            Else
+                                outArr(outIdx, dstC) = newVal
+                            End If
+                        Next u
+                    End If
                 End If
             End If
         End If
