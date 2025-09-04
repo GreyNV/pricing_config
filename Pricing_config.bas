@@ -201,20 +201,21 @@ Private Sub ComputeDerivedColumns_AP(ws As Worksheet, lastRow As Long)
     Dim asinIdx As Object
     Dim cnt() As Long, firstRow() As Long, minAJ() As Double, minAJRow() As Long
     Dim maxAL() As Double, donorRow() As Long, minBEff() As Double, minBEffRow() As Long
-    Dim dAE() As Boolean, dAJ() As Boolean, dAL() As Boolean, dAM() As Boolean
-    Dim dAN() As Boolean, dAO() As Boolean, dBB() As Boolean, dBC() As Boolean
-    Dim dBD() As Boolean, dBE() As Boolean, dBF() As Boolean, dBG() As Boolean
-    Dim dBH() As Boolean, dBI() As Boolean
+    ' True when column values differ across rows for the ASIN
+    Dim hasVarAE() As Boolean, hasVarAJ() As Boolean, hasVarAL() As Boolean, hasVarAM() As Boolean
+    Dim hasVarAN() As Boolean, hasVarAO() As Boolean, hasVarBB() As Boolean, hasVarBC() As Boolean
+    Dim hasVarBD() As Boolean, hasVarBE() As Boolean, hasVarBF() As Boolean, hasVarBG() As Boolean
+    Dim hasVarBH() As Boolean, hasVarBI() As Boolean
 
     BuildAsinAggregates n, vS, vAE, vAJ, vAL, vAM, vAN, vAO, vBB, vBC, vBD, vBE, vBF, vBG, vBH, vBI, _
                         asinIdx, cnt, firstRow, minAJ, minAJRow, maxAL, donorRow, minBEff, minBEffRow, _
-                        dAE, dAJ, dAL, dAM, dAN, dAO, dBB, dBC, dBD, dBE, dBF, dBG, dBH, dBI
+                        hasVarAE, hasVarAJ, hasVarAL, hasVarAM, hasVarAN, hasVarAO, hasVarBB, hasVarBC, hasVarBD, hasVarBE, hasVarBF, hasVarBG, hasVarBH, hasVarBI
 
     Dim outAP As Variant: ReDim outAP(1 To n, 1 To COL_P_IDX)
     Dim i As Long
     For i = 1 To n
         PopulateOutputRow i, outAP, asinIdx, cnt, firstRow, minAJ, minAJRow, maxAL, donorRow, minBEff, minBEffRow, _
-                          dAE, dAJ, dAL, dAM, dAN, dAO, dBB, dBC, dBD, dBE, dBF, dBG, dBH, dBI, _
+                          hasVarAE, hasVarAJ, hasVarAL, hasVarAM, hasVarAN, hasVarAO, hasVarBB, hasVarBC, hasVarBD, hasVarBE, hasVarBF, hasVarBG, hasVarBH, hasVarBI, _
                           vS, vAE, vAJ, vAL, vAM, vAN, vAO, vBB, vBC, vBD, vBE, vBF, vBG, vBH, vBI
     Next i
     ws.Range("A2", ws.Cells(lastRow, COL_P_IDX)).Value = outAP
@@ -226,10 +227,10 @@ Private Sub BuildAsinAggregates(ByVal n As Long, vS As Variant, vAE As Variant, 
                                 ByRef asinIdx As Object, ByRef cnt() As Long, ByRef firstRow() As Long, _
                                 ByRef minAJ() As Double, ByRef minAJRow() As Long, ByRef maxAL() As Double, _
                                 ByRef donorRow() As Long, ByRef minBEff() As Double, ByRef minBEffRow() As Long, _
-                                ByRef dAE() As Boolean, ByRef dAJ() As Boolean, ByRef dAL() As Boolean, ByRef dAM() As Boolean, _
-                                ByRef dAN() As Boolean, ByRef dAO() As Boolean, ByRef dBB() As Boolean, ByRef dBC() As Boolean, _
-                                ByRef dBD() As Boolean, ByRef dBE() As Boolean, ByRef dBF() As Boolean, ByRef dBG() As Boolean, _
-                                ByRef dBH() As Boolean, ByRef dBI() As Boolean)
+                                ByRef hasVarAE() As Boolean, ByRef hasVarAJ() As Boolean, ByRef hasVarAL() As Boolean, ByRef hasVarAM() As Boolean, _
+                                ByRef hasVarAN() As Boolean, ByRef hasVarAO() As Boolean, ByRef hasVarBB() As Boolean, ByRef hasVarBC() As Boolean, _
+                                ByRef hasVarBD() As Boolean, ByRef hasVarBE() As Boolean, ByRef hasVarBF() As Boolean, ByRef hasVarBG() As Boolean, _
+                                ByRef hasVarBH() As Boolean, ByRef hasVarBI() As Boolean)
 
     Set asinIdx = CreateObject("Scripting.Dictionary")
     asinIdx.CompareMode = vbTextCompare
@@ -251,13 +252,13 @@ Private Sub BuildAsinAggregates(ByVal n As Long, vS As Variant, vAE As Variant, 
                 cap = IIf(cap = 0, 256, cap * 2)
                 ReDim Preserve cnt(1 To cap), firstRow(1 To cap), minAJ(1 To cap), minAJRow(1 To cap), maxAL(1 To cap), _
                                 donorRow(1 To cap), minBEff(1 To cap), minBEffRow(1 To cap)
-                ReDim Preserve fAE(1 To cap), dAE(1 To cap), fAJ(1 To cap), dAJ(1 To cap), _
-                                fAL(1 To cap), dAL(1 To cap), fAM(1 To cap), dAM(1 To cap), _
-                                fAN(1 To cap), dAN(1 To cap), fAO(1 To cap), dAO(1 To cap), _
-                                fBB(1 To cap), dBB(1 To cap), fBC(1 To cap), dBC(1 To cap), _
-                                fBD(1 To cap), dBD(1 To cap), fBE(1 To cap), dBE(1 To cap), _
-                                fBF(1 To cap), dBF(1 To cap), fBG(1 To cap), dBG(1 To cap), _
-                                fBH(1 To cap), dBH(1 To cap), fBI(1 To cap), dBI(1 To cap)
+                ReDim Preserve fAE(1 To cap), hasVarAE(1 To cap), fAJ(1 To cap), hasVarAJ(1 To cap), _
+                                fAL(1 To cap), hasVarAL(1 To cap), fAM(1 To cap), hasVarAM(1 To cap), _
+                                fAN(1 To cap), hasVarAN(1 To cap), fAO(1 To cap), hasVarAO(1 To cap), _
+                                fBB(1 To cap), hasVarBB(1 To cap), fBC(1 To cap), hasVarBC(1 To cap), _
+                                fBD(1 To cap), hasVarBD(1 To cap), fBE(1 To cap), hasVarBE(1 To cap), _
+                                fBF(1 To cap), hasVarBF(1 To cap), fBG(1 To cap), hasVarBG(1 To cap), _
+                                fBH(1 To cap), hasVarBH(1 To cap), fBI(1 To cap), hasVarBI(1 To cap)
             End If
             asinIdx(s) = k
             cnt(k) = 0
@@ -277,20 +278,20 @@ Private Sub BuildAsinAggregates(ByVal n As Long, vS As Variant, vAE As Variant, 
         Dim idx As Long: idx = CLng(asinIdx(s))
         cnt(idx) = cnt(idx) + 1
 
-        UpdateDistinct fAE(idx), dAE(idx), vAE(i, 1)
-        UpdateDistinct fAJ(idx), dAJ(idx), vAJ(i, 1)
-        UpdateDistinct fAL(idx), dAL(idx), vAL(i, 1)
-        UpdateDistinct fAM(idx), dAM(idx), vAM(i, 1)
-        UpdateDistinct fAN(idx), dAN(idx), vAN(i, 1)
-        UpdateDistinct fAO(idx), dAO(idx), vAO(i, 1)
-        UpdateDistinct fBB(idx), dBB(idx), vBB(i, 1)
-        UpdateDistinct fBC(idx), dBC(idx), vBC(i, 1)
-        UpdateDistinct fBD(idx), dBD(idx), vBD(i, 1)
-        UpdateDistinct fBE(idx), dBE(idx), vBE(i, 1)
-        UpdateDistinct fBF(idx), dBF(idx), vBF(i, 1)
-        UpdateDistinct fBG(idx), dBG(idx), vBG(i, 1)
-        UpdateDistinct fBH(idx), dBH(idx), vBH(i, 1)
-        UpdateDistinct fBI(idx), dBI(idx), vBI(i, 1)
+        UpdateDistinct fAE(idx), hasVarAE(idx), vAE(i, 1)
+        UpdateDistinct fAJ(idx), hasVarAJ(idx), vAJ(i, 1)
+        UpdateDistinct fAL(idx), hasVarAL(idx), vAL(i, 1)
+        UpdateDistinct fAM(idx), hasVarAM(idx), vAM(i, 1)
+        UpdateDistinct fAN(idx), hasVarAN(idx), vAN(i, 1)
+        UpdateDistinct fAO(idx), hasVarAO(idx), vAO(i, 1)
+        UpdateDistinct fBB(idx), hasVarBB(idx), vBB(i, 1)
+        UpdateDistinct fBC(idx), hasVarBC(idx), vBC(i, 1)
+        UpdateDistinct fBD(idx), hasVarBD(idx), vBD(i, 1)
+        UpdateDistinct fBE(idx), hasVarBE(idx), vBE(i, 1)
+        UpdateDistinct fBF(idx), hasVarBF(idx), vBF(i, 1)
+        UpdateDistinct fBG(idx), hasVarBG(idx), vBG(i, 1)
+        UpdateDistinct fBH(idx), hasVarBH(idx), vBH(i, 1)
+        UpdateDistinct fBI(idx), hasVarBI(idx), vBI(i, 1)
 
         If IsNumeric(vAJ(i, 1)) Then
             Dim aj As Double: aj = CDbl(vAJ(i, 1))
@@ -315,18 +316,18 @@ Private Sub BuildAsinAggregates(ByVal n As Long, vS As Variant, vAE As Variant, 
 
     ReDim Preserve cnt(1 To k), firstRow(1 To k), minAJ(1 To k), minAJRow(1 To k), _
                     maxAL(1 To k), donorRow(1 To k), minBEff(1 To k), minBEffRow(1 To k), _
-                    dAE(1 To k), dAJ(1 To k), dAL(1 To k), dAM(1 To k), dAN(1 To k), _
-                    dAO(1 To k), dBB(1 To k), dBC(1 To k), dBD(1 To k), dBE(1 To k), _
-                    dBF(1 To k), dBG(1 To k), dBH(1 To k), dBI(1 To k)
+                    hasVarAE(1 To k), hasVarAJ(1 To k), hasVarAL(1 To k), hasVarAM(1 To k), hasVarAN(1 To k), _
+                    hasVarAO(1 To k), hasVarBB(1 To k), hasVarBC(1 To k), hasVarBD(1 To k), hasVarBE(1 To k), _
+                    hasVarBF(1 To k), hasVarBG(1 To k), hasVarBH(1 To k), hasVarBI(1 To k)
 End Sub
 
 Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx As Object, _
                               cnt() As Long, firstRow() As Long, minAJ() As Double, minAJRow() As Long, _
                               maxAL() As Double, donorRow() As Long, minBEff() As Double, minBEffRow() As Long, _
-                              dAE() As Boolean, dAJ() As Boolean, dAL() As Boolean, dAM() As Boolean, _
-                              dAN() As Boolean, dAO() As Boolean, dBB() As Boolean, dBC() As Boolean, _
-                              dBD() As Boolean, dBE() As Boolean, dBF() As Boolean, dBG() As Boolean, _
-                              dBH() As Boolean, dBI() As Boolean, vS As Variant, vAE As Variant, vAJ As Variant, _
+                              hasVarAE() As Boolean, hasVarAJ() As Boolean, hasVarAL() As Boolean, hasVarAM() As Boolean, _
+                              hasVarAN() As Boolean, hasVarAO() As Boolean, hasVarBB() As Boolean, hasVarBC() As Boolean, _
+                              hasVarBD() As Boolean, hasVarBE() As Boolean, hasVarBF() As Boolean, hasVarBG() As Boolean, _
+                              hasVarBH() As Boolean, hasVarBI() As Boolean, vS As Variant, vAE As Variant, vAJ As Variant, _
                               vAL As Variant, vAM As Variant, vAN As Variant, vAO As Variant, vBB As Variant, _
                               vBC As Variant, vBD As Variant, vBE As Variant, vBF As Variant, vBG As Variant, _
                               vBH As Variant, vBI As Variant)
@@ -364,43 +365,30 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
         Exit Sub
     End If
 
-    Dim uniqAE As Boolean: uniqAE = dAE(id)
-    Dim uniqAJ As Boolean: uniqAJ = dAJ(id)
-    Dim uniqAL As Boolean: uniqAL = dAL(id)
-    Dim uniqAM As Boolean: uniqAM = dAM(id)
-    Dim uniqAN As Boolean: uniqAN = dAN(id)
-    Dim uniqAO As Boolean: uniqAO = dAO(id)
-    Dim uniqBB As Boolean: uniqBB = dBB(id)
-    Dim uniqBC As Boolean: uniqBC = dBC(id)
-    Dim uniqBD As Boolean: uniqBD = dBD(id)
-    Dim uniqBE As Boolean: uniqBE = dBE(id)
-    Dim uniqBF As Boolean: uniqBF = dBF(id)
-    Dim uniqBG As Boolean: uniqBG = dBG(id)
-    Dim uniqBH As Boolean: uniqBH = dBH(id)
-    Dim uniqBI As Boolean: uniqBI = dBI(id)
+    ' hasVarXX arrays are True when column values differ across rows for the ASIN
 
     Dim Brow As Variant: Brow = "SKIP"
-    If uniqAJ Then
+    If hasVarAJ(id) Then
         If minBEffRow(id) > 0 Then
             Brow = minBEff(id)
         End If
     End If
     outAP(i, colB) = Brow
 
-    If uniqAE Then
+    If hasVarAE(id) Then
         If UCase$(CStr(vAE(i, 1))) <> "YES" Then outAP(i, colA) = "Yes" Else outAP(i, colA) = "SKIP"
     Else
         outAP(i, colA) = "SKIP"
     End If
 
-    If uniqAL Then
+    If hasVarAL(id) Then
         If maxAL(id) > -1E+307 Then outAP(i, colC) = maxAL(id) Else outAP(i, colC) = "SKIP"
     Else
         outAP(i, colC) = "SKIP"
     End If
 
     Dim keyRow As Long: keyRow = IIf(minBEffRow(id) > 0, minBEffRow(id), minAJRow(id))
-    If uniqAM Then
+    If hasVarAM(id) Then
         If CStr(Brow) = "SKIP" Then
             outAP(i, colD) = "Product Sphere"
         Else
@@ -410,7 +398,7 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
         outAP(i, colD) = "SKIP"
     End If
 
-    If uniqAN Then
+    If hasVarAN(id) Then
         If CStr(Brow) = "SKIP" Then
             outAP(i, colE) = "Increase Margin Maintain Unit Sales"
         Else
@@ -420,7 +408,7 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
         outAP(i, colE) = "SKIP"
     End If
 
-    If uniqAO Then
+    If hasVarAO(id) Then
         If CStr(Brow) = "SKIP" Then
             outAP(i, colF) = ""
         Else
@@ -430,7 +418,7 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
         outAP(i, colF) = "SKIP"
     End If
 
-    If uniqBB Then
+    If hasVarBB(id) Then
         If UCase$(CStr(vBB(i, 1))) <> "YES" Then outAP(i, colG) = "Yes" Else outAP(i, colG) = "SKIP"
     Else
         outAP(i, colG) = "SKIP"
@@ -440,23 +428,23 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
     Dim hVal As Variant, iVal As Variant, jVal As Variant, kVal As Variant
     Dim lVal As Variant, mVal As Variant, nVal As Variant
     If CStr(Brow) = "SKIP" Then
-        hVal = IIf(uniqBC, vBC(fr, 1), "SKIP")
-        iVal = IIf(uniqBD, vBD(fr, 1), "SKIP")
-        jVal = IIf(uniqBE, vBE(fr, 1), "SKIP")
-        kVal = IIf(uniqBF, vBF(fr, 1), "SKIP")
-        lVal = IIf(uniqBG, vBG(fr, 1), "SKIP")
-        mVal = IIf(uniqBH, vBH(fr, 1), "SKIP")
-        nVal = IIf(uniqBI, vBI(fr, 1), "SKIP")
+        hVal = IIf(hasVarBC(id), vBC(fr, 1), "SKIP")
+        iVal = IIf(hasVarBD(id), vBD(fr, 1), "SKIP")
+        jVal = IIf(hasVarBE(id), vBE(fr, 1), "SKIP")
+        kVal = IIf(hasVarBF(id), vBF(fr, 1), "SKIP")
+        lVal = IIf(hasVarBG(id), vBG(fr, 1), "SKIP")
+        mVal = IIf(hasVarBH(id), vBH(fr, 1), "SKIP")
+        nVal = IIf(hasVarBI(id), vBI(fr, 1), "SKIP")
     Else
-        hVal = IIf(uniqBC, vBC(keyRow, 1), "SKIP")
-        iVal = IIf(uniqBD, vBD(keyRow, 1), "SKIP")
-        jVal = IIf(uniqBE, vBE(keyRow, 1), "SKIP")
-        kVal = IIf(uniqBF, vBF(keyRow, 1), "SKIP")
-        lVal = IIf(uniqBG, vBG(keyRow, 1), "SKIP")
-        mVal = IIf(uniqBH, vBH(keyRow, 1), "SKIP")
-        nVal = IIf(uniqBI, vBI(keyRow, 1), "SKIP")
+        hVal = IIf(hasVarBC(id), vBC(keyRow, 1), "SKIP")
+        iVal = IIf(hasVarBD(id), vBD(keyRow, 1), "SKIP")
+        jVal = IIf(hasVarBE(id), vBE(keyRow, 1), "SKIP")
+        kVal = IIf(hasVarBF(id), vBF(keyRow, 1), "SKIP")
+        lVal = IIf(hasVarBG(id), vBG(keyRow, 1), "SKIP")
+        mVal = IIf(hasVarBH(id), vBH(keyRow, 1), "SKIP")
+        nVal = IIf(hasVarBI(id), vBI(keyRow, 1), "SKIP")
     End If
-    If uniqBB And (UCase$(CStr(vBB(i, 1))) <> "YES") And (donorRow(id) > 0) Then
+    If hasVarBB(id) And (UCase$(CStr(vBB(i, 1))) <> "YES") And (donorRow(id) > 0) Then
         hVal = vBC(donorRow(id), 1)
         iVal = vBD(donorRow(id), 1)
         jVal = vBE(donorRow(id), 1)
