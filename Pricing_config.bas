@@ -54,12 +54,12 @@ Public Sub Btn_UploadAndProcess()
 
     Dim srcPath As String
     srcPath = PickSourceWorkbookPath()
+    Dim wbSrc As Workbook
+    Set wbSrc = Nothing
     If Len(srcPath) = 0 Then GoTo Finally
 
-    Dim wbSrc As Workbook
     Set wbSrc = Workbooks.Open(Filename:=srcPath, ReadOnly:=True)
     ImportAllPricingConfigurationSheets wbSrc, wsTool, wsTool.Range(PASTE_START_CELL)
-    wbSrc.Close SaveChanges:=False
 
     Dim lastRow As Long, lastCol As Long
     UsedBounds wsTool, lastRow, lastCol
@@ -73,6 +73,9 @@ Public Sub Btn_UploadAndProcess()
 EH:
     MsgBox "Upload/Process failed: " & Err.Description, vbExclamation
 Finally:
+    If Not wbSrc Is Nothing Then
+        wbSrc.Close SaveChanges:=False
+    End If
     OptimizeEnd
 End Sub
 
