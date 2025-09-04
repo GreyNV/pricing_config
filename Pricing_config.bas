@@ -527,10 +527,14 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     If lastRow < 2 Then Exit Sub
 
     Dim colN As Long, colS As Long, colBB As Long, colAL As Long
+    Dim colBC As Long, colBI As Long, colFilter As Long
     colN = COL_N_IDX
     colS = COL_S_IDX
     colBB = COL_BB_IDX
     colAL = COL_AL_IDX
+    colBC = COL_BC_IDX
+    colBI = COL_BI_IDX
+    colFilter = ColIndex(FILTER_COL_LETTER)
 
     Dim dataFirstCol As Long: dataFirstCol = startCell.Column  ' Q
     Dim dataLastCol As Long: dataLastCol = lastCol             ' rightmost used in tool
@@ -563,27 +567,25 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
         Array("BC", "AM"), Array("BD", "AN"), Array("BE", "AO"), _
         Array("BF", "AP"), Array("BG", "AQ"), Array("BH", "AR"), Array("BI", "AS") _
     )
-    Dim pairSrcIdx() As Long, pairDstIdx() As Long, pairSrcOffset() As Long
-    ReDim pairSrcIdx(LBound(pairLetters) To UBound(pairLetters))
-    ReDim pairDstIdx(LBound(pairLetters) To UBound(pairLetters))
-    ReDim pairSrcOffset(LBound(pairLetters) To UBound(pairLetters))
-    For mi = LBound(pairLetters) To UBound(pairLetters)
-        pairSrcIdx(mi) = ColIndex(CStr(pairLetters(mi)(0)))
-        pairDstIdx(mi) = ColIndex(CStr(pairLetters(mi)(1)))
-        pairSrcOffset(mi) = pairSrcIdx(mi) - ColLetterToNum("BC") + 1
+    Dim pairSrcIdx As Variant, pairDstIdx As Variant, pairSrcOffset() As Long
+    pairSrcIdx = Array(COL_BC_IDX, COL_BD_IDX, COL_BE_IDX, COL_BF_IDX, COL_BG_IDX, COL_BH_IDX, COL_BI_IDX)
+    pairDstIdx = Array(COL_AM_IDX, COL_AN_IDX, COL_AO_IDX, COL_AP_IDX, COL_AQ_IDX, COL_AR_IDX, COL_AS_IDX)
+    ReDim pairSrcOffset(LBound(pairSrcIdx) To UBound(pairSrcIdx))
+    For mi = LBound(pairSrcIdx) To UBound(pairSrcIdx)
+        pairSrcOffset(mi) = pairSrcIdx(mi) - colBC + 1
     Next mi
 
     ' Preload tool blocks
     Dim toolVals As Variant, filterVals As Variant, tailVals As Variant
     toolVals = wsTool.Range("A2", wsTool.Cells(lastRow, colN)).Value2
-    filterVals = wsTool.Range(FILTER_COL_LETTER & 2, FILTER_COL_LETTER & lastRow).Value2
+    filterVals = wsTool.Range(wsTool.Cells(2, colFilter), wsTool.Cells(lastRow, colFilter)).Value2
     tailVals = wsTool.Range(wsTool.Cells(2, dataFirstCol), wsTool.Cells(lastRow, dataLastCol)).Value2
 
     ' Donor map per ASIN (first BB=="Yes")
     Dim vS As Variant, vBB As Variant, donorSrcVals As Variant
     vS = wsTool.Range("S2", wsTool.Cells(lastRow, colS)).Value2
     vBB = wsTool.Range("BB2", wsTool.Cells(lastRow, colBB)).Value2
-    donorSrcVals = wsTool.Range("BC2", wsTool.Cells(lastRow, ColLetterToNum("BI"))).Value2
+    donorSrcVals = wsTool.Range(wsTool.Cells(2, colBC), wsTool.Cells(lastRow, colBI)).Value2
     Dim donorByAsin As Object: Set donorByAsin = CreateObject("Scripting.Dictionary"): donorByAsin.CompareMode = vbTextCompare
     Dim i As Long
     For i = 1 To UBound(vS, 1)
