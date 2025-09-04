@@ -1,6 +1,6 @@
 Attribute VB_Name = "Module1"
 '====================================================================
-' VBA Pricing Tool – Clear & Upload/Process (No extra worksheets)
+' VBA Pricing Tool  Clear & Upload/Process (No extra worksheets)
 ' Using optimized ASIN struct computation for A:P
 '====================================================================
 Option Explicit
@@ -127,9 +127,8 @@ End Function
 Private Sub ComputeDerivedColumns_AP(ws As Worksheet, lastRow As Long)
     If lastRow < 2 Then Exit Sub
 
-    Dim n As Long: n = lastRow - 1 ' rows 2..lastRow
+    Dim n As Long: n = lastRow - 1
 
-    ' === Read required columns into memory (2..lastRow) ===
     Dim vS As Variant, vAE As Variant, vAJ As Variant, vAL As Variant
     Dim vAM As Variant, vAN As Variant, vAO As Variant, vBB As Variant
     Dim vBC As Variant, vBD As Variant, vBE As Variant, vBF As Variant
@@ -151,69 +150,81 @@ Private Sub ComputeDerivedColumns_AP(ws As Worksheet, lastRow As Long)
     vBH = ws.Range("BH2:BH" & lastRow).Value2
     vBI = ws.Range("BI2:BI" & lastRow).Value2
 
-    ' === Per-ASIN struct via index arrays ===
-    Dim asinIdx As Object: Set asinIdx = CreateObject("Scripting.Dictionary") ' asin -> k
+    Dim asinIdx As Object
+    Dim cnt() As Long, firstRow() As Long, minAJ() As Double, minAJRow() As Long
+    Dim maxAL() As Double, donorRow() As Long, minBEff() As Double, minBEffRow() As Long
+    Dim dAE() As Boolean, dAJ() As Boolean, dAL() As Boolean, dAM() As Boolean
+    Dim dAN() As Boolean, dAO() As Boolean, dBB() As Boolean, dBC() As Boolean
+    Dim dBD() As Boolean, dBE() As Boolean, dBF() As Boolean, dBG() As Boolean
+    Dim dBH() As Boolean, dBI() As Boolean
+
+    BuildAsinAggregates n, vS, vAE, vAJ, vAL, vAM, vAN, vAO, vBB, vBC, vBD, vBE, vBF, vBG, vBH, vBI, _
+                        asinIdx, cnt, firstRow, minAJ, minAJRow, maxAL, donorRow, minBEff, minBEffRow, _
+                        dAE, dAJ, dAL, dAM, dAN, dAO, dBB, dBC, dBD, dBE, dBF, dBG, dBH, dBI
+
+    Dim outAP As Variant: ReDim outAP(1 To n, 1 To ColLetterToNum("P"))
+    Dim i As Long
+    For i = 1 To n
+        PopulateOutputRow i, outAP, asinIdx, cnt, firstRow, minAJ, minAJRow, maxAL, donorRow, minBEff, minBEffRow, _
+                          dAE, dAJ, dAL, dAM, dAN, dAO, dBB, dBC, dBD, dBE, dBF, dBG, dBH, dBI, _
+                          vS, vAE, vAJ, vAL, vAM, vAN, vAO, vBB, vBC, vBD, vBE, vBF, vBG, vBH, vBI
+    Next i
+
+    ws.Range("A2", ws.Cells(lastRow, ColLetterToNum("P"))).Value = outAP
+End Sub
+
+Private Sub BuildAsinAggregates(ByVal n As Long, vS As Variant, vAE As Variant, vAJ As Variant, vAL As Variant, _
+                                vAM As Variant, vAN As Variant, vAO As Variant, vBB As Variant, vBC As Variant, vBD As Variant, _
+                                vBE As Variant, vBF As Variant, vBG As Variant, vBH As Variant, vBI As Variant, _
+                                ByRef asinIdx As Object, ByRef cnt() As Long, ByRef firstRow() As Long, _
+                                ByRef minAJ() As Double, ByRef minAJRow() As Long, ByRef maxAL() As Double, _
+                                ByRef donorRow() As Long, ByRef minBEff() As Double, ByRef minBEffRow() As Long, _
+                                ByRef dAE() As Boolean, ByRef dAJ() As Boolean, ByRef dAL() As Boolean, ByRef dAM() As Boolean, _
+                                ByRef dAN() As Boolean, ByRef dAO() As Boolean, ByRef dBB() As Boolean, ByRef dBC() As Boolean, _
+                                ByRef dBD() As Boolean, ByRef dBE() As Boolean, ByRef dBF() As Boolean, ByRef dBG() As Boolean, _
+                                ByRef dBH() As Boolean, ByRef dBI() As Boolean)
+
+    Set asinIdx = CreateObject("Scripting.Dictionary")
     asinIdx.CompareMode = vbTextCompare
 
-    Dim k As Long: k = 0
-    Dim cnt() As Long, firstRow() As Long, minAJ() As Double, minAJRow() As Long, maxAL() As Double, donorRow() As Long, _
-        minBEff() As Double, minBEffRow() As Long
-    Dim fAE() As Variant, dAE() As Boolean
-    Dim fAJ() As Variant, dAJ() As Boolean
-    Dim fAL() As Variant, dAL() As Boolean
-    Dim fAM() As Variant, dAM() As Boolean
-    Dim fAN() As Variant, dAN() As Boolean
-    Dim fAO() As Variant, dAO() As Boolean
-    Dim fBB() As Variant, dBB() As Boolean
-    Dim fBC() As Variant, dBC() As Boolean
-    Dim fBD() As Variant, dBD() As Boolean
-    Dim fBE() As Variant, dBE() As Boolean
-    Dim fBF() As Variant, dBF() As Boolean
-    Dim fBG() As Variant, dBG() As Boolean
-    Dim fBH() As Variant, dBH() As Boolean
-    Dim fBI() As Variant, dBI() As Boolean
-
-    ' helpers for dynamic growth
     Dim cap As Long: cap = 0
+    Dim k As Long: k = 0
     Dim i As Long
 
-    ' ---- Pass 1: build per-ASIN aggregates ----
+    Dim fAE() As Variant, fAJ() As Variant, fAL() As Variant, fAM() As Variant
+    Dim fAN() As Variant, fAO() As Variant, fBB() As Variant, fBC() As Variant
+    Dim fBD() As Variant, fBE() As Variant, fBF() As Variant, fBG() As Variant
+    Dim fBH() As Variant, fBI() As Variant
+
     For i = 1 To n
         Dim s As String: s = CStr(vS(i, 1))
         If Not asinIdx.Exists(s) Then
             k = k + 1
             If k > cap Then
                 cap = IIf(cap = 0, 256, cap * 2)
-                ReDim Preserve cnt(1 To cap), firstRow(1 To cap), minAJ(1 To cap), minAJRow(1 To cap), maxAL(1 To cap), donorRow(1 To cap), _
-                minBEff(1 To cap), minBEffRow(1 To cap)
-                ReDim Preserve fAE(1 To cap), dAE(1 To cap)
-                ReDim Preserve fAJ(1 To cap), dAJ(1 To cap)
-                ReDim Preserve fAL(1 To cap), dAL(1 To cap)
-                ReDim Preserve fAM(1 To cap), dAM(1 To cap)
-                ReDim Preserve fAN(1 To cap), dAN(1 To cap)
-                ReDim Preserve fAO(1 To cap), dAO(1 To cap)
-                ReDim Preserve fBB(1 To cap), dBB(1 To cap)
-                ReDim Preserve fBC(1 To cap), dBC(1 To cap)
-                ReDim Preserve fBD(1 To cap), dBD(1 To cap)
-                ReDim Preserve fBE(1 To cap), dBE(1 To cap)
-                ReDim Preserve fBF(1 To cap), dBF(1 To cap)
-                ReDim Preserve fBG(1 To cap), dBG(1 To cap)
-                ReDim Preserve fBH(1 To cap), dBH(1 To cap)
-                ReDim Preserve fBI(1 To cap), dBI(1 To cap)
+                ReDim Preserve cnt(1 To cap), firstRow(1 To cap), minAJ(1 To cap), minAJRow(1 To cap), maxAL(1 To cap), _
+                                donorRow(1 To cap), minBEff(1 To cap), minBEffRow(1 To cap)
+                ReDim Preserve fAE(1 To cap), dAE(1 To cap), fAJ(1 To cap), dAJ(1 To cap), _
+                                fAL(1 To cap), dAL(1 To cap), fAM(1 To cap), dAM(1 To cap), _
+                                fAN(1 To cap), dAN(1 To cap), fAO(1 To cap), dAO(1 To cap), _
+                                fBB(1 To cap), dBB(1 To cap), fBC(1 To cap), dBC(1 To cap), _
+                                fBD(1 To cap), dBD(1 To cap), fBE(1 To cap), dBE(1 To cap), _
+                                fBF(1 To cap), dBF(1 To cap), fBG(1 To cap), dBG(1 To cap), _
+                                fBH(1 To cap), dBH(1 To cap), fBI(1 To cap), dBI(1 To cap)
             End If
             asinIdx(s) = k
             cnt(k) = 0
-            firstRow(k) = i ' first occurrence row index in arrays
-            minAJ(k) = 1E+308   ' +Inf sentinel
+            firstRow(k) = i
+            minAJ(k) = 1E+308
             minAJRow(k) = 0
-            maxAL(k) = -1E+308   ' -Inf sentinel
+            maxAL(k) = -1E+308
             minBEff(k) = 1E+308: minBEffRow(k) = 0
+            donorRow(k) = 0
             fAE(k) = Empty: fAJ(k) = Empty: fAL(k) = Empty
             fAM(k) = Empty: fAN(k) = Empty: fAO(k) = Empty
-            fBB(k) = Empty
-            fBC(k) = Empty: fBD(k) = Empty: fBE(k) = Empty
-            fBF(k) = Empty: fBG(k) = Empty: fBH(k) = Empty: fBI(k) = Empty
-            donorRow(k) = 0
+            fBB(k) = Empty: fBC(k) = Empty: fBD(k) = Empty
+            fBE(k) = Empty: fBF(k) = Empty: fBG(k) = Empty
+            fBH(k) = Empty: fBI(k) = Empty
         End If
 
         Dim idx As Long: idx = CLng(asinIdx(s))
@@ -234,205 +245,203 @@ Private Sub ComputeDerivedColumns_AP(ws As Worksheet, lastRow As Long)
         UpdateDistinct fBH(idx), dBH(idx), vBH(i, 1)
         UpdateDistinct fBI(idx), dBI(idx), vBI(i, 1)
 
-        ' min AJ (numeric) and row of minAJ
         If IsNumeric(vAJ(i, 1)) Then
             Dim aj As Double: aj = CDbl(vAJ(i, 1))
             If aj < minAJ(idx) Then
                 minAJ(idx) = aj
                 minAJRow(idx) = i
             End If
-            ' Effective min for Column B: treat 0 as 99999 then take min
             Dim ajEff As Double: ajEff = IIf(aj = 0, 99999, aj)
             If ajEff < minBEff(idx) Then
                 minBEff(idx) = ajEff
                 minBEffRow(idx) = i
             End If
         End If
-        ' max AL (numeric)
         If IsNumeric(vAL(i, 1)) Then
             Dim alv As Double: alv = CDbl(vAL(i, 1))
             If alv > maxAL(idx) Then maxAL(idx) = alv
         End If
-        ' donor row: FIRST BB=="Yes" per ASIN
         If donorRow(idx) = 0 Then
             If UCase$(Trim$(CStr(vBB(i, 1)))) = "YES" Then donorRow(idx) = i
         End If
     Next i
 
-    ' ---- Pass 2: produce A:P ----
-    Dim outAP As Variant: ReDim outAP(1 To n, 1 To ColLetterToNum("P"))
+    ReDim Preserve cnt(1 To k), firstRow(1 To k), minAJ(1 To k), minAJRow(1 To k), _
+                    maxAL(1 To k), donorRow(1 To k), minBEff(1 To k), minBEffRow(1 To k), _
+                    dAE(1 To k), dAJ(1 To k), dAL(1 To k), dAM(1 To k), dAN(1 To k), _
+                    dAO(1 To k), dBB(1 To k), dBC(1 To k), dBD(1 To k), dBE(1 To k), _
+                    dBF(1 To k), dBG(1 To k), dBH(1 To k), dBI(1 To k)
+End Sub
 
-    For i = 1 To n
-        Dim asin2 As String: asin2 = CStr(vS(i, 1))
-        Dim id As Long: id = CLng(asinIdx(asin2))
-        Dim pcount As Long: pcount = cnt(id)
-        outAP(i, ColLetterToNum("P")) = pcount
+Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx As Object, _
+                              cnt() As Long, firstRow() As Long, minAJ() As Double, minAJRow() As Long, _
+                              maxAL() As Double, donorRow() As Long, minBEff() As Double, minBEffRow() As Long, _
+                              dAE() As Boolean, dAJ() As Boolean, dAL() As Boolean, dAM() As Boolean, _
+                              dAN() As Boolean, dAO() As Boolean, dBB() As Boolean, dBC() As Boolean, _
+                              dBD() As Boolean, dBE() As Boolean, dBF() As Boolean, dBG() As Boolean, _
+                              dBH() As Boolean, dBI() As Boolean, vS As Variant, vAE As Variant, vAJ As Variant, _
+                              vAL As Variant, vAM As Variant, vAN As Variant, vAO As Variant, vBB As Variant, _
+                              vBC As Variant, vBD As Variant, vBE As Variant, vBF As Variant, vBG As Variant, _
+                              vBH As Variant, vBI As Variant)
 
-        Dim uniqAE As Boolean: uniqAE = dAE(id)
-        Dim uniqAJ As Boolean: uniqAJ = dAJ(id)
-        Dim uniqAL As Boolean: uniqAL = dAL(id)
-        Dim uniqAM As Boolean: uniqAM = dAM(id)
-        Dim uniqAN As Boolean: uniqAN = dAN(id)
-        Dim uniqAO As Boolean: uniqAO = dAO(id)
-        Dim uniqBB As Boolean: uniqBB = dBB(id)
-        Dim uniqBC As Boolean: uniqBC = dBC(id)
-        Dim uniqBD As Boolean: uniqBD = dBD(id)
-        Dim uniqBE As Boolean: uniqBE = dBE(id)
-        Dim uniqBF As Boolean: uniqBF = dBF(id)
-        Dim uniqBG As Boolean: uniqBG = dBG(id)
-        Dim uniqBH As Boolean: uniqBH = dBH(id)
-        Dim uniqBI As Boolean: uniqBI = dBI(id)
+    Dim asin2 As String: asin2 = CStr(vS(i, 1))
+    Dim id As Long: id = CLng(asinIdx(asin2))
+    Dim pcount As Long: pcount = cnt(id)
+    outAP(i, ColLetterToNum("P")) = pcount
 
-        Dim Brow As Variant: Brow = "SKIP"
-        If pcount > 1 And uniqAJ Then
-            If minBEffRow(id) > 0 Then
-                Brow = minBEff(id)
-            End If
+    Dim uniqAE As Boolean: uniqAE = dAE(id)
+    Dim uniqAJ As Boolean: uniqAJ = dAJ(id)
+    Dim uniqAL As Boolean: uniqAL = dAL(id)
+    Dim uniqAM As Boolean: uniqAM = dAM(id)
+    Dim uniqAN As Boolean: uniqAN = dAN(id)
+    Dim uniqAO As Boolean: uniqAO = dAO(id)
+    Dim uniqBB As Boolean: uniqBB = dBB(id)
+    Dim uniqBC As Boolean: uniqBC = dBC(id)
+    Dim uniqBD As Boolean: uniqBD = dBD(id)
+    Dim uniqBE As Boolean: uniqBE = dBE(id)
+    Dim uniqBF As Boolean: uniqBF = dBF(id)
+    Dim uniqBG As Boolean: uniqBG = dBG(id)
+    Dim uniqBH As Boolean: uniqBH = dBH(id)
+    Dim uniqBI As Boolean: uniqBI = dBI(id)
+
+    Dim Brow As Variant: Brow = "SKIP"
+    If pcount > 1 And uniqAJ Then
+        If minBEffRow(id) > 0 Then
+            Brow = minBEff(id)
         End If
-        outAP(i, ColLetterToNum("B")) = Brow
+    End If
+    outAP(i, ColLetterToNum("B")) = Brow
 
-        ' A
-        If pcount > 1 Then
-            If uniqAE Then
-                If UCase$(CStr(vAE(i, 1))) <> "YES" Then outAP(i, ColLetterToNum("A")) = "Yes" Else outAP(i, ColLetterToNum("A")) = "SKIP"
-            Else
-                outAP(i, ColLetterToNum("A")) = "SKIP"
-            End If
+    If pcount > 1 Then
+        If uniqAE Then
+            If UCase$(CStr(vAE(i, 1))) <> "YES" Then outAP(i, ColLetterToNum("A")) = "Yes" Else outAP(i, ColLetterToNum("A")) = "SKIP"
         Else
             outAP(i, ColLetterToNum("A")) = "SKIP"
         End If
+    Else
+        outAP(i, ColLetterToNum("A")) = "SKIP"
+    End If
 
-        ' C
-        If pcount > 1 Then
-            If uniqAL Then
-                If maxAL(id) > -1E+307 Then outAP(i, ColLetterToNum("C")) = maxAL(id) Else outAP(i, ColLetterToNum("C")) = "SKIP"
-            Else
-                outAP(i, ColLetterToNum("C")) = "SKIP"
-            End If
+    If pcount > 1 Then
+        If uniqAL Then
+            If maxAL(id) > -1E+307 Then outAP(i, ColLetterToNum("C")) = maxAL(id) Else outAP(i, ColLetterToNum("C")) = "SKIP"
         Else
             outAP(i, ColLetterToNum("C")) = "SKIP"
         End If
+    Else
+        outAP(i, ColLetterToNum("C")) = "SKIP"
+    End If
 
-        ' D/E/F
-        Dim keyRow As Long: keyRow = IIf(minBEffRow(id) > 0, minBEffRow(id), minAJRow(id)) ' row to use when B<>SKIP (effective min)
-        ' D
-        If pcount > 1 Then
-            If uniqAM Then
-                If CStr(Brow) = "SKIP" Then
-                    outAP(i, ColLetterToNum("D")) = "Product Sphere"
-                Else
-                    outAP(i, ColLetterToNum("D")) = vAM(keyRow, 1)
-                End If
+    Dim keyRow As Long: keyRow = IIf(minBEffRow(id) > 0, minBEffRow(id), minAJRow(id))
+    If pcount > 1 Then
+        If uniqAM Then
+            If CStr(Brow) = "SKIP" Then
+                outAP(i, ColLetterToNum("D")) = "Product Sphere"
             Else
-                outAP(i, ColLetterToNum("D")) = "SKIP"
+                outAP(i, ColLetterToNum("D")) = vAM(keyRow, 1)
             End If
         Else
             outAP(i, ColLetterToNum("D")) = "SKIP"
         End If
-        ' E
-        If pcount > 1 Then
-            If uniqAN Then
-                If CStr(Brow) = "SKIP" Then
-                    outAP(i, ColLetterToNum("E")) = "Increase Margin Maintain Unit Sales"
-                Else
-                    outAP(i, ColLetterToNum("E")) = vAN(keyRow, 1)
-                End If
+    Else
+        outAP(i, ColLetterToNum("D")) = "SKIP"
+    End If
+
+    If pcount > 1 Then
+        If uniqAN Then
+            If CStr(Brow) = "SKIP" Then
+                outAP(i, ColLetterToNum("E")) = "Increase Margin Maintain Unit Sales"
             Else
-                outAP(i, ColLetterToNum("E")) = "SKIP"
+                outAP(i, ColLetterToNum("E")) = vAN(keyRow, 1)
             End If
         Else
             outAP(i, ColLetterToNum("E")) = "SKIP"
         End If
-        ' F
-        If pcount > 1 Then
-            If uniqAO Then
-                If CStr(Brow) = "SKIP" Then
-                    outAP(i, ColLetterToNum("F")) = ""
-                Else
-                    outAP(i, ColLetterToNum("F")) = vAO(keyRow, 1)
-                End If
+    Else
+        outAP(i, ColLetterToNum("E")) = "SKIP"
+    End If
+
+    If pcount > 1 Then
+        If uniqAO Then
+            If CStr(Brow) = "SKIP" Then
+                outAP(i, ColLetterToNum("F")) = ""
             Else
-                outAP(i, ColLetterToNum("F")) = "SKIP"
+                outAP(i, ColLetterToNum("F")) = vAO(keyRow, 1)
             End If
         Else
             outAP(i, ColLetterToNum("F")) = "SKIP"
         End If
+    Else
+        outAP(i, ColLetterToNum("F")) = "SKIP"
+    End If
 
-        ' G
-        If pcount > 1 Then
-            If uniqBB Then
-                If UCase$(CStr(vBB(i, 1))) <> "YES" Then outAP(i, ColLetterToNum("G")) = "Yes" Else outAP(i, ColLetterToNum("G")) = "SKIP"
-            Else
-                outAP(i, ColLetterToNum("G")) = "SKIP"
-            End If
+    If pcount > 1 Then
+        If uniqBB Then
+            If UCase$(CStr(vBB(i, 1))) <> "YES" Then outAP(i, ColLetterToNum("G")) = "Yes" Else outAP(i, ColLetterToNum("G")) = "SKIP"
         Else
             outAP(i, ColLetterToNum("G")) = "SKIP"
         End If
+    Else
+        outAP(i, ColLetterToNum("G")) = "SKIP"
+    End If
 
-        ' H..N always gate on P>1
-        If pcount > 1 Then
-            Dim fr As Long: fr = firstRow(id)
-            Dim hVal As Variant, iVal As Variant, jVal As Variant, kVal As Variant, lVal As Variant, mVal As Variant, nVal As Variant
-            If CStr(Brow) = "SKIP" Then
-                hVal = IIf(uniqBC, vBC(fr, 1), "SKIP")
-                iVal = IIf(uniqBD, vBD(fr, 1), "SKIP")
-                jVal = IIf(uniqBE, vBE(fr, 1), "SKIP")
-                kVal = IIf(uniqBF, vBF(fr, 1), "SKIP")
-                lVal = IIf(uniqBG, vBG(fr, 1), "SKIP")
-                mVal = IIf(uniqBH, vBH(fr, 1), "SKIP")
-                nVal = IIf(uniqBI, vBI(fr, 1), "SKIP")
-            Else
-                hVal = IIf(uniqBC, vBC(keyRow, 1), "SKIP")
-                iVal = IIf(uniqBD, vBD(keyRow, 1), "SKIP")
-                jVal = IIf(uniqBE, vBE(keyRow, 1), "SKIP")
-                kVal = IIf(uniqBF, vBF(keyRow, 1), "SKIP")
-                lVal = IIf(uniqBG, vBG(keyRow, 1), "SKIP")
-                mVal = IIf(uniqBH, vBH(keyRow, 1), "SKIP")
-                nVal = IIf(uniqBI, vBI(keyRow, 1), "SKIP")
-            End If
-            ' If this ASIN has mixed BB and this row's BB<>"YES", force donor BC..BI
-            If (pcount > 1) And uniqBB And (UCase$(CStr(vBB(i, 1))) <> "YES") And (donorRow(id) > 0) Then
-                hVal = vBC(donorRow(id), 1)
-                iVal = vBD(donorRow(id), 1)
-                jVal = vBE(donorRow(id), 1)
-                kVal = vBF(donorRow(id), 1)
-                lVal = vBG(donorRow(id), 1)
-                mVal = vBH(donorRow(id), 1)
-                nVal = vBI(donorRow(id), 1)
-            End If
-
-            outAP(i, ColLetterToNum("H")) = hVal
-            outAP(i, ColLetterToNum("I")) = iVal
-            outAP(i, ColLetterToNum("J")) = jVal
-            outAP(i, ColLetterToNum("K")) = kVal
-            outAP(i, ColLetterToNum("L")) = lVal
-            outAP(i, ColLetterToNum("M")) = mVal
-            outAP(i, ColLetterToNum("N")) = nVal
+    If pcount > 1 Then
+        Dim fr As Long: fr = firstRow(id)
+        Dim hVal As Variant, iVal As Variant, jVal As Variant, kVal As Variant
+        Dim lVal As Variant, mVal As Variant, nVal As Variant
+        If CStr(Brow) = "SKIP" Then
+            hVal = IIf(uniqBC, vBC(fr, 1), "SKIP")
+            iVal = IIf(uniqBD, vBD(fr, 1), "SKIP")
+            jVal = IIf(uniqBE, vBE(fr, 1), "SKIP")
+            kVal = IIf(uniqBF, vBF(fr, 1), "SKIP")
+            lVal = IIf(uniqBG, vBG(fr, 1), "SKIP")
+            mVal = IIf(uniqBH, vBH(fr, 1), "SKIP")
+            nVal = IIf(uniqBI, vBI(fr, 1), "SKIP")
         Else
-            outAP(i, ColLetterToNum("H")) = "SKIP"
-            outAP(i, ColLetterToNum("I")) = "SKIP"
-            outAP(i, ColLetterToNum("J")) = "SKIP"
-            outAP(i, ColLetterToNum("K")) = "SKIP"
-            outAP(i, ColLetterToNum("L")) = "SKIP"
-            outAP(i, ColLetterToNum("M")) = "SKIP"
-            outAP(i, ColLetterToNum("N")) = "SKIP"
+            hVal = IIf(uniqBC, vBC(keyRow, 1), "SKIP")
+            iVal = IIf(uniqBD, vBD(keyRow, 1), "SKIP")
+            jVal = IIf(uniqBE, vBE(keyRow, 1), "SKIP")
+            kVal = IIf(uniqBF, vBF(keyRow, 1), "SKIP")
+            lVal = IIf(uniqBG, vBG(keyRow, 1), "SKIP")
+            mVal = IIf(uniqBH, vBH(keyRow, 1), "SKIP")
+            nVal = IIf(uniqBI, vBI(keyRow, 1), "SKIP")
         End If
-
-        ' O: FILTER if any A..N <> SKIP
-        Dim skipCount As Long: skipCount = 0
-        Dim c As Long
-        For c = ColLetterToNum("A") To ColLetterToNum("N")
-            If UCase$(CStr(outAP(i, c))) = "SKIP" Or IsEmpty(outAP(i, c)) Then skipCount = skipCount + 1
-        Next c
-        If skipCount = (ColLetterToNum("N") - ColLetterToNum("A") + 1) Then
-            outAP(i, ColLetterToNum("O")) = "SKIP"
-        Else
-            outAP(i, ColLetterToNum("O")) = "FILTER"
+        If (pcount > 1) And uniqBB And (UCase$(CStr(vBB(i, 1))) <> "YES") And (donorRow(id) > 0) Then
+            hVal = vBC(donorRow(id), 1)
+            iVal = vBD(donorRow(id), 1)
+            jVal = vBE(donorRow(id), 1)
+            kVal = vBF(donorRow(id), 1)
+            lVal = vBG(donorRow(id), 1)
+            mVal = vBH(donorRow(id), 1)
+            nVal = vBI(donorRow(id), 1)
         End If
-    Next i
+        outAP(i, ColLetterToNum("H")) = hVal
+        outAP(i, ColLetterToNum("I")) = iVal
+        outAP(i, ColLetterToNum("J")) = jVal
+        outAP(i, ColLetterToNum("K")) = kVal
+        outAP(i, ColLetterToNum("L")) = lVal
+        outAP(i, ColLetterToNum("M")) = mVal
+        outAP(i, ColLetterToNum("N")) = nVal
+    Else
+        outAP(i, ColLetterToNum("H")) = "SKIP"
+        outAP(i, ColLetterToNum("I")) = "SKIP"
+        outAP(i, ColLetterToNum("J")) = "SKIP"
+        outAP(i, ColLetterToNum("K")) = "SKIP"
+        outAP(i, ColLetterToNum("L")) = "SKIP"
+        outAP(i, ColLetterToNum("M")) = "SKIP"
+        outAP(i, ColLetterToNum("N")) = "SKIP"
+    End If
 
-    ' Write back A:P as values
-    ws.Range("A2", ws.Cells(lastRow, ColLetterToNum("P"))).Value = outAP
+    Dim skipCount As Long: skipCount = 0
+    Dim c As Long
+    For c = ColLetterToNum("A") To ColLetterToNum("N")
+        If UCase$(CStr(outAP(i, c))) = "SKIP" Or IsEmpty(outAP(i, c)) Then skipCount = skipCount + 1
+    Next c
+    If skipCount = (ColLetterToNum("N") - ColLetterToNum("A") + 1) Then
+        outAP(i, ColLetterToNum("O")) = "SKIP"
+    Else
+        outAP(i, ColLetterToNum("O")) = "FILTER"
+    End If
 End Sub
 
 Private Sub UpdateDistinct(ByRef firstVal As Variant, ByRef seenDifferent As Boolean, ByVal newVal As Variant)
@@ -569,7 +578,7 @@ End Sub
 
 Private Function IsSkipValue(v As Variant) As Boolean
     On Error GoTo SafeFalse
-    If IsError(v) Then GoTo SafeFalse
+    If IsError(v) Then Go To SafeFalse
     IsSkipValue = (UCase$(Trim$(CStr(v))) = "SKIP")
     Exit Function
 SafeFalse:
@@ -642,6 +651,4 @@ Private Sub OptimizeEnd()
         .ScreenUpdating = True
     End With
 End Sub
-
-
 
