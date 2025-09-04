@@ -487,7 +487,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     colAL = ColLetterToNum("AL")
 
     Dim dataFirstCol As Long: dataFirstCol = startCell.Column  ' Q
-    Dim dataLastCol As Long:  dataLastCol = lastCol            ' rightmost used in tool
+    Dim dataLastCol As Long: dataLastCol = lastCol             ' rightmost used in tool
     Dim width As Long: width = dataLastCol - dataFirstCol + 1
 
     ' Create export workbook/sheet
@@ -517,80 +517,99 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
         Array("BC", "AM"), Array("BD", "AN"), Array("BE", "AO"), _
         Array("BF", "AP"), Array("BG", "AQ"), Array("BH", "AR"), Array("BI", "AS") _
     )
-    Dim pairSrcIdx() As Long, pairDstIdx() As Long
+    Dim pairSrcIdx() As Long, pairDstIdx() As Long, pairSrcOffset() As Long
     ReDim pairSrcIdx(LBound(pairLetters) To UBound(pairLetters))
     ReDim pairDstIdx(LBound(pairLetters) To UBound(pairLetters))
+    ReDim pairSrcOffset(LBound(pairLetters) To UBound(pairLetters))
     For mi = LBound(pairLetters) To UBound(pairLetters)
         pairSrcIdx(mi) = ColLetterToNum(CStr(pairLetters(mi)(0)))
         pairDstIdx(mi) = ColLetterToNum(CStr(pairLetters(mi)(1)))
+        pairSrcOffset(mi) = pairSrcIdx(mi) - ColLetterToNum("BC") + 1
     Next mi
 
     ' Preload tool blocks
-    Dim toolVals As Variant, filterVals As Variant
+    Dim toolVals As Variant, filterVals As Variant, tailVals As Variant
     toolVals = wsTool.Range("A2", wsTool.Cells(lastRow, colN)).Value2
     filterVals = wsTool.Range(FILTER_COL_LETTER & 2, FILTER_COL_LETTER & lastRow).Value2
+    tailVals = wsTool.Range(wsTool.Cells(2, dataFirstCol), wsTool.Cells(lastRow, dataLastCol)).Value2
 
     ' Donor map per ASIN (first BB=="Yes")
-    Dim vS As Variant, vBB As Variant
+    Dim vS As Variant, vBB As Variant, donorSrcVals As Variant
     vS = wsTool.Range("S2", wsTool.Cells(lastRow, colS)).Value2
     vBB = wsTool.Range("BB2", wsTool.Cells(lastRow, colBB)).Value2
+    donorSrcVals = wsTool.Range("BC2", wsTool.Cells(lastRow, ColLetterToNum("BI"))).Value2
     Dim donorByAsin As Object: Set donorByAsin = CreateObject("Scripting.Dictionary"): donorByAsin.CompareMode = vbTextCompare
     Dim i As Long
-    For i = 2 To lastRow
-        Dim asin As String: asin = CStr(vS(i - 1, 1))
+    For i = 1 To UBound(vS, 1)
+        Dim asin As String: asin = CStr(vS(i, 1))
         If Len(asin) > 0 And Not donorByAsin.Exists(asin) Then
-            If UCase$(Trim$(CStr(vBB(i - 1, 1)))) = "YES" Then donorByAsin(asin) = i
+            If UCase$(Trim$(CStr(vBB(i, 1)))) = "YES" Then donorByAsin(asin) = i
         End If
     Next i
 
-    Dim r As Long, outRow As Long: outRow = 2
-    For r = 2 To lastRow
-        If UCase$(Trim$(CStr(filterVals(r - 1, 1)))) = "FILTER" Then
+    Dim outArr As Variant: ReDim outArr(1 To lastRow - 1, 1 To width)
+    Dim notes As Collection: Set notes = New Collection
+
+    Dim r As Long, outIdx As Long
+    Dim alIdx As Long: alIdx = colAL
+    For r = 1 To UBound(filterVals, 1)
+        If UCase$(Trim$(CStr(filterVals(r, 1)))) = "FILTER" Then
+            outIdx = outIdx + 1
+
             ' 1) Copy Q:Last as-is
-            wsOut.Cells(outRow, 1).Resize(1, width).Value = wsTool.Cells(r, dataFirstCol).Resize(1, width).Value
+            For i = 1 To width
+                outArr(outIdx, i) = tailVals(r, i)
+            Next i
 
             ' 2) Overlay mapped values from tool A:N into destination columns unless SKIP (and add notes if changed)
             Dim m As Long
             For m = LBound(mapInfo) To UBound(mapInfo)
-                Dim v As Variant: v = toolVals(r - 1, mapInfo(m)(2))
+                Dim v As Variant: v = toolVals(r, mapInfo(m)(2))
                 If Not IsSkipValue(v) Then
                     Dim dc As Long: dc = mapInfo(m)(3)
-                    Dim oldv As Variant: oldv = wsOut.Cells(outRow, dc).Value
+                    Dim oldv As Variant: oldv = outArr(outIdx, dc)
                     If CStr(oldv) <> CStr(v) Then
-                        wsOut.Cells(outRow, dc).Value = v
-                        NoteReplace wsOut.Cells(outRow, dc), oldv, v, _
-                                   "Source: Tool " & mapInfo(m)(0) & " ? Export " & mapInfo(m)(1)
+                        outArr(outIdx, dc) = v
+                        notes.Add Array(outIdx + 1, dc, oldv, v, _
+                                         "Source: Tool " & mapInfo(m)(0) & " ? Export " & mapInfo(m)(1))
                     Else
-                        wsOut.Cells(outRow, dc).Value = v
+                        outArr(outIdx, dc) = v
                     End If
                 End If
             Next m
 
             ' 3) If AL (mapped from G) is "Yes", force AM:AS from donor row's H..N
-            If UCase$(Trim$(CStr(wsOut.Cells(outRow, colAL).Value))) = "YES" Then
-                Dim asinCurr As String: asinCurr = CStr(wsTool.Cells(r, colS).Value)
+            If UCase$(Trim$(CStr(outArr(outIdx, alIdx)))) = "YES" Then
+                Dim asinCurr As String: asinCurr = CStr(vS(r, 1))
                 If Len(asinCurr) > 0 And donorByAsin.Exists(asinCurr) Then
-                    Dim dRow As Long: dRow = CLng(donorByAsin(asinCurr))
+                    Dim dIdx As Long: dIdx = CLng(donorByAsin(asinCurr))
                     Dim u As Long
                     For u = LBound(pairSrcIdx) To UBound(pairSrcIdx)
                         Dim dstC As Long: dstC = pairDstIdx(u)
-                        Dim newVal As Variant: newVal = wsTool.Cells(dRow, pairSrcIdx(u)).Value
-                        Dim prevVal As Variant: prevVal = wsOut.Cells(outRow, dstC).Value
+                        Dim newVal As Variant: newVal = donorSrcVals(dIdx, pairSrcOffset(u))
+                        Dim prevVal As Variant: prevVal = outArr(outIdx, dstC)
                         If CStr(prevVal) <> CStr(newVal) Then
-                            wsOut.Cells(outRow, dstC).Value = newVal
-                            NoteReplace wsOut.Cells(outRow, dstC), prevVal, newVal, _
-                                       "Source: Donor " & pairLetters(u)(0) & " ? Export " & pairLetters(u)(1) & " (AL=Yes)"
+                            outArr(outIdx, dstC) = newVal
+                            notes.Add Array(outIdx + 1, dstC, prevVal, newVal, _
+                                             "Source: Donor " & pairLetters(u)(0) & " ? Export " & pairLetters(u)(1) & " (AL=Yes)")
                         Else
-                            wsOut.Cells(outRow, dstC).Value = newVal
+                            outArr(outIdx, dstC) = newVal
                         End If
                     Next u
-
                 End If
             End If
-
-            outRow = outRow + 1
         End If
     Next r
+
+    If outIdx = 0 Then Exit Sub
+
+    ReDim Preserve outArr(1 To outIdx, 1 To width)
+    wsOut.Range("A2").Resize(outIdx, width).Value = outArr
+
+    Dim ni As Variant
+    For Each ni In notes
+        NoteReplace wsOut.Cells(ni(0), ni(1)), ni(2), ni(3), CStr(ni(4))
+    Next ni
 
     wsOut.Cells.EntireColumn.AutoFit
 
