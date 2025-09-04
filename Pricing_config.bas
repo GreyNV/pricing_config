@@ -201,6 +201,7 @@ Private Sub ComputeDerivedColumns_AP(ws As Worksheet, lastRow As Long)
     Dim asinIdx As Object
     Dim cnt() As Long, firstRow() As Long, minAJ() As Double, minAJRow() As Long
     Dim maxAL() As Double, donorRow() As Long, minBEff() As Double, minBEffRow() As Long
+    Dim keyRowAM() As Variant, keyRowAN() As Variant, keyRowAO() As Variant
     Dim dAE() As Boolean, dAJ() As Boolean, dAL() As Boolean, dAM() As Boolean
     Dim dAN() As Boolean, dAO() As Boolean, dBB() As Boolean, dBC() As Boolean
     Dim dBD() As Boolean, dBE() As Boolean, dBF() As Boolean, dBG() As Boolean
@@ -208,14 +209,16 @@ Private Sub ComputeDerivedColumns_AP(ws As Worksheet, lastRow As Long)
 
     BuildAsinAggregates n, vS, vAE, vAJ, vAL, vAM, vAN, vAO, vBB, vBC, vBD, vBE, vBF, vBG, vBH, vBI, _
                         asinIdx, cnt, firstRow, minAJ, minAJRow, maxAL, donorRow, minBEff, minBEffRow, _
+                        keyRowAM, keyRowAN, keyRowAO, _
                         dAE, dAJ, dAL, dAM, dAN, dAO, dBB, dBC, dBD, dBE, dBF, dBG, dBH, dBI
 
     Dim outAP As Variant: ReDim outAP(1 To n, 1 To COL_P_IDX)
     Dim i As Long
     For i = 1 To n
         PopulateOutputRow i, outAP, asinIdx, cnt, firstRow, minAJ, minAJRow, maxAL, donorRow, minBEff, minBEffRow, _
+                          keyRowAM, keyRowAN, keyRowAO, _
                           dAE, dAJ, dAL, dAM, dAN, dAO, dBB, dBC, dBD, dBE, dBF, dBG, dBH, dBI, _
-                          vS, vAE, vAJ, vAL, vAM, vAN, vAO, vBB, vBC, vBD, vBE, vBF, vBG, vBH, vBI
+                          vS, vAE, vAJ, vAL, vBB, vBC, vBD, vBE, vBF, vBG, vBH, vBI
     Next i
     ws.Range("A2", ws.Cells(lastRow, COL_P_IDX)).Value = outAP
 End Sub
@@ -226,6 +229,7 @@ Private Sub BuildAsinAggregates(ByVal n As Long, vS As Variant, vAE As Variant, 
                                 ByRef asinIdx As Object, ByRef cnt() As Long, ByRef firstRow() As Long, _
                                 ByRef minAJ() As Double, ByRef minAJRow() As Long, ByRef maxAL() As Double, _
                                 ByRef donorRow() As Long, ByRef minBEff() As Double, ByRef minBEffRow() As Long, _
+                                ByRef keyRowAM() As Variant, ByRef keyRowAN() As Variant, ByRef keyRowAO() As Variant, _
                                 ByRef dAE() As Boolean, ByRef dAJ() As Boolean, ByRef dAL() As Boolean, ByRef dAM() As Boolean, _
                                 ByRef dAN() As Boolean, ByRef dAO() As Boolean, ByRef dBB() As Boolean, ByRef dBC() As Boolean, _
                                 ByRef dBD() As Boolean, ByRef dBE() As Boolean, ByRef dBF() As Boolean, ByRef dBG() As Boolean, _
@@ -250,7 +254,8 @@ Private Sub BuildAsinAggregates(ByVal n As Long, vS As Variant, vAE As Variant, 
             If k > cap Then
                 cap = IIf(cap = 0, 256, cap * 2)
                 ReDim Preserve cnt(1 To cap), firstRow(1 To cap), minAJ(1 To cap), minAJRow(1 To cap), maxAL(1 To cap), _
-                                donorRow(1 To cap), minBEff(1 To cap), minBEffRow(1 To cap)
+                                donorRow(1 To cap), minBEff(1 To cap), minBEffRow(1 To cap), _
+                                keyRowAM(1 To cap), keyRowAN(1 To cap), keyRowAO(1 To cap)
                 ReDim Preserve fAE(1 To cap), dAE(1 To cap), fAJ(1 To cap), dAJ(1 To cap), _
                                 fAL(1 To cap), dAL(1 To cap), fAM(1 To cap), dAM(1 To cap), _
                                 fAN(1 To cap), dAN(1 To cap), fAO(1 To cap), dAO(1 To cap), _
@@ -272,6 +277,7 @@ Private Sub BuildAsinAggregates(ByVal n As Long, vS As Variant, vAE As Variant, 
             fBB(k) = Empty: fBC(k) = Empty: fBD(k) = Empty
             fBE(k) = Empty: fBF(k) = Empty: fBG(k) = Empty
             fBH(k) = Empty: fBI(k) = Empty
+            keyRowAM(k) = Empty: keyRowAN(k) = Empty: keyRowAO(k) = Empty
         End If
 
         Dim idx As Long: idx = CLng(asinIdx(s))
@@ -313,8 +319,19 @@ Private Sub BuildAsinAggregates(ByVal n As Long, vS As Variant, vAE As Variant, 
         End If
     Next i
 
+    Dim kr As Long
+    For i = 1 To k
+        kr = IIf(minBEffRow(i) > 0, minBEffRow(i), minAJRow(i))
+        If kr > 0 Then
+            keyRowAM(i) = vAM(kr, 1)
+            keyRowAN(i) = vAN(kr, 1)
+            keyRowAO(i) = vAO(kr, 1)
+        End If
+    Next i
+
     ReDim Preserve cnt(1 To k), firstRow(1 To k), minAJ(1 To k), minAJRow(1 To k), _
                     maxAL(1 To k), donorRow(1 To k), minBEff(1 To k), minBEffRow(1 To k), _
+                    keyRowAM(1 To k), keyRowAN(1 To k), keyRowAO(1 To k), _
                     dAE(1 To k), dAJ(1 To k), dAL(1 To k), dAM(1 To k), dAN(1 To k), _
                     dAO(1 To k), dBB(1 To k), dBC(1 To k), dBD(1 To k), dBE(1 To k), _
                     dBF(1 To k), dBG(1 To k), dBH(1 To k), dBI(1 To k)
@@ -323,13 +340,13 @@ End Sub
 Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx As Object, _
                               cnt() As Long, firstRow() As Long, minAJ() As Double, minAJRow() As Long, _
                               maxAL() As Double, donorRow() As Long, minBEff() As Double, minBEffRow() As Long, _
+                              keyRowAM() As Variant, keyRowAN() As Variant, keyRowAO() As Variant, _
                               dAE() As Boolean, dAJ() As Boolean, dAL() As Boolean, dAM() As Boolean, _
                               dAN() As Boolean, dAO() As Boolean, dBB() As Boolean, dBC() As Boolean, _
                               dBD() As Boolean, dBE() As Boolean, dBF() As Boolean, dBG() As Boolean, _
                               dBH() As Boolean, dBI() As Boolean, vS As Variant, vAE As Variant, vAJ As Variant, _
-                              vAL As Variant, vAM As Variant, vAN As Variant, vAO As Variant, vBB As Variant, _
-                              vBC As Variant, vBD As Variant, vBE As Variant, vBF As Variant, vBG As Variant, _
-                              vBH As Variant, vBI As Variant)
+                              vAL As Variant, vBB As Variant, vBC As Variant, vBD As Variant, vBE As Variant, _
+                              vBF As Variant, vBG As Variant, vBH As Variant, vBI As Variant)
 
     Dim colA As Long, colB As Long, colC As Long, colD As Long, colE As Long, colF As Long, colG As Long
     Dim colH As Long, colI As Long, colJ As Long, colK As Long, colL As Long, colM As Long, colN As Long, colO As Long, colP As Long
@@ -398,13 +415,12 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
         outAP(i, colC) = "SKIP"
     End If
 
-    Dim keyRow As Long: keyRow = IIf(minBEffRow(id) > 0, minBEffRow(id), minAJRow(id))
     If pcount > 1 Then
         If uniqAM Then
             If CStr(Brow) = "SKIP" Then
                 outAP(i, colD) = "Product Sphere"
             Else
-                outAP(i, colD) = vAM(keyRow, 1)
+                outAP(i, colD) = keyRowAM(id)
             End If
         Else
             outAP(i, colD) = "SKIP"
@@ -418,7 +434,7 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
             If CStr(Brow) = "SKIP" Then
                 outAP(i, colE) = "Increase Margin Maintain Unit Sales"
             Else
-                outAP(i, colE) = vAN(keyRow, 1)
+                outAP(i, colE) = keyRowAN(id)
             End If
         Else
             outAP(i, colE) = "SKIP"
@@ -432,7 +448,7 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
             If CStr(Brow) = "SKIP" Then
                 outAP(i, colF) = ""
             Else
-                outAP(i, colF) = vAO(keyRow, 1)
+                outAP(i, colF) = keyRowAO(id)
             End If
         Else
             outAP(i, colF) = "SKIP"
@@ -453,6 +469,7 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
 
     If pcount > 1 Then
         Dim fr As Long: fr = firstRow(id)
+        Dim keyRow As Long: keyRow = IIf(minBEffRow(id) > 0, minBEffRow(id), minAJRow(id))
         Dim hVal As Variant, iVal As Variant, jVal As Variant, kVal As Variant
         Dim lVal As Variant, mVal As Variant, nVal As Variant
         If CStr(Brow) = "SKIP" Then
