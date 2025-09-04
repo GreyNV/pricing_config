@@ -481,17 +481,20 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
     End If
 
     If hasVarBB(id) And validDonor And (UCase$(CStr(vBB(i, 1))) <> "YES") Then
-        outAP(i, colG) = "Yes"
         hVal = vBC(donorRow(id), 1)
         iVal = vBD(donorRow(id), 1)
         jVal = vBE(donorRow(id), 1)
-        kVal = vBF(donorRow(id), 1)
+        kVal = Date + 1
         lVal = vBG(donorRow(id), 1)
-        mVal = vBH(donorRow(id), 1)
+        Dim saleEnd As Variant: saleEnd = vBH(donorRow(id), 1)
+        If IsDate(saleEnd) And CDate(saleEnd) > Date Then
+            mVal = saleEnd
+        Else
+            mVal = "SKIP"
+        End If
         nVal = vBI(donorRow(id), 1)
-    Else
-        outAP(i, colG) = "SKIP"
     End If
+    outAP(i, colG) = "SKIP"
     outAP(i, colH) = hVal
     outAP(i, colI) = iVal
     outAP(i, colJ) = jVal
