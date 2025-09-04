@@ -402,7 +402,12 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
     If pcount > 1 Then
         If uniqAM Then
             If CStr(Brow) = "SKIP" Then
-                outAP(i, colD) = "Product Sphere"
+                Dim dVal As String: dVal = Trim$(CStr(vAM(keyRow, 1)))
+                If Len(dVal) > 0 And UCase$(dVal) <> "SKIP" Then
+                    outAP(i, colD) = dVal
+                Else
+                    outAP(i, colD) = "Product Sphere"
+                End If
             Else
                 outAP(i, colD) = vAM(keyRow, 1)
             End If
@@ -415,8 +420,14 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
 
     If pcount > 1 Then
         If uniqAN Then
+            ' Column E depends on the final decision made for column D
             If CStr(Brow) = "SKIP" Then
-                outAP(i, colE) = "Increase Margin Maintain Unit Sales"
+                Dim eVal As String: eVal = Trim$(CStr(vAN(keyRow, 1)))
+                If Len(eVal) > 0 And UCase$(eVal) <> "SKIP" Then
+                    outAP(i, colE) = eVal
+                Else
+                    outAP(i, colE) = "Increase Margin Maintain Unit Sales"
+                End If
             Else
                 outAP(i, colE) = vAN(keyRow, 1)
             End If
@@ -429,8 +440,14 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
 
     If pcount > 1 Then
         If uniqAO Then
+            ' Column F also depends on the final decision in column D
             If CStr(Brow) = "SKIP" Then
-                outAP(i, colF) = ""
+                Dim fVal As String: fVal = Trim$(CStr(vAO(keyRow, 1)))
+                If Len(fVal) > 0 And UCase$(fVal) <> "SKIP" Then
+                    outAP(i, colF) = fVal
+                Else
+                    outAP(i, colF) = ""
+                End If
             Else
                 outAP(i, colF) = vAO(keyRow, 1)
             End If
