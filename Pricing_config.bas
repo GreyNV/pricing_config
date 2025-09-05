@@ -454,9 +454,7 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
     validDonor = False
     If donorRow(id) > 0 Then
         Dim donorDate As Variant: donorDate = vBH(donorRow(id), 1)
-        If IsDate(donorDate) Then
-            If CDate(donorDate) > Date Then validDonor = True
-        End If
+        If IsFutureDate(donorDate) Then validDonor = True
     End If
 
     Dim fr As Long: fr = firstRow(id)
@@ -487,7 +485,7 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
         kVal = Date + 1
         lVal = vBG(donorRow(id), 1)
         Dim saleEnd As Variant: saleEnd = vBH(donorRow(id), 1)
-        If IsDate(saleEnd) And CDate(saleEnd) > Date Then
+        If IsFutureDate(saleEnd) Then
             mVal = saleEnd
         Else
             mVal = "SKIP"
@@ -639,10 +637,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
                 If Len(asinCurr) > 0 And donorByAsin.Exists(asinCurr) Then
                     Dim dIdx As Long: dIdx = CLng(donorByAsin(asinCurr))
                     Dim donorEnd As Variant: donorEnd = donorSrcVals(dIdx, pairSrcOffset(bhIdx))
-                    Dim validDonor As Boolean: validDonor = False
-                    If IsDate(donorEnd) Then
-                        If CDate(donorEnd) > Date Then validDonor = True
-                    End If
+                    Dim validDonor As Boolean: validDonor = IsFutureDate(donorEnd)
                     If validDonor Then
                         Dim u As Long
                         For u = LBound(pairSrcIdx) To UBound(pairSrcIdx)
@@ -819,6 +814,10 @@ Private Function ColIndex(ByVal colLetter As String) As Long
         Case Else
             ColIndex = ColLetterToNum(colLetter)
     End Select
+End Function
+
+Private Function IsFutureDate(v As Variant) As Boolean
+    IsFutureDate = IsDate(v) And CDate(v) > Date
 End Function
 
 Private Sub OptimizeStart()
