@@ -552,7 +552,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     ' Headers
     wsOut.Cells(1, 1).Resize(1, width).Value = wsTool.Cells(1, dataFirstCol).Resize(1, width).Value
     Dim maps As Variant: maps = MAPPING_PAIRS
-    EnsureMappedHeadersFromTool wsTool, wsOut, maps
+    FillMappedHeaderBlanksFromTool wsTool, wsOut, maps
 
     Dim mapInfo As Variant
     ReDim mapInfo(LBound(maps) To UBound(maps))
@@ -689,13 +689,15 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     End With
 End Sub
 
-Private Sub EnsureMappedHeadersFromTool(wsTool As Worksheet, wsOut As Worksheet, mapPairs As Variant)
+Private Sub FillMappedHeaderBlanksFromTool(wsTool As Worksheet, wsOut As Worksheet, mapPairs As Variant)
     Dim i As Long
     For i = LBound(mapPairs) To UBound(mapPairs)
         Dim toolCol As String: toolCol = CStr(mapPairs(i)(0))
-        Dim destCol As String:  destCol = CStr(mapPairs(i)(1))
-        Dim hdr As String: hdr = CStr(wsTool.Cells(1, ColIndex(toolCol)).Value)
-        If Len(hdr) > 0 Then wsOut.Cells(1, ColIndex(destCol)).Value = hdr
+        Dim destCol As String: destCol = CStr(mapPairs(i)(1))
+        If Len(wsOut.Cells(1, ColIndex(destCol)).Value) = 0 Then
+            Dim hdr As String: hdr = CStr(wsTool.Cells(1, ColIndex(toolCol)).Value)
+            If Len(hdr) > 0 Then wsOut.Cells(1, ColIndex(destCol)).Value = hdr
+        End If
     Next i
 End Sub
 
