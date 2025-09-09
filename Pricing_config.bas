@@ -542,6 +542,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     Dim dataFirstCol As Long: dataFirstCol = startCell.Column  ' Q
     Dim dataLastCol As Long: dataLastCol = lastCol             ' rightmost used in tool
     Dim width As Long: width = dataLastCol - dataFirstCol + 1
+    Dim firstCol As Long: firstCol = dataFirstCol
 
     ' Create export workbook/sheet
     Dim wbOut As Workbook, wsOut As Worksheet
@@ -619,14 +620,16 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
             For m = LBound(mapInfo) To UBound(mapInfo)
                 Dim v As Variant: v = toolVals(r, mapInfo(m)(2))
                 If Not IsSkipValue(v) Then
-                    Dim dc As Long: dc = mapInfo(m)(3)
-                    Dim oldv As Variant: oldv = outArr(outIdx, dc)
-                    If CStr(oldv) <> CStr(v) Then
-                        outArr(outIdx, dc) = v
-                        notes.Add Array(outIdx + 1, dc, oldv, v, _
-                                         "Source: Tool " & mapInfo(m)(0) & " ? Export " & mapInfo(m)(1))
-                    Else
-                        outArr(outIdx, dc) = v
+                    Dim dcRel As Long: dcRel = mapInfo(m)(3) - firstCol + 1
+                    If dcRel >= 1 And dcRel <= width Then
+                        Dim oldv As Variant: oldv = outArr(outIdx, dcRel)
+                        If CStr(oldv) <> CStr(v) Then
+                            outArr(outIdx, dcRel) = v
+                            notes.Add Array(outIdx + 1, dcRel, oldv, v, _
+                                            "Source: Tool " & mapInfo(m)(0) & " ? Export " & mapInfo(m)(1))
+                        Else
+                            outArr(outIdx, dcRel) = v
+                        End If
                     End If
                 End If
             Next m
@@ -642,6 +645,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
                         Dim u As Long
                         For u = LBound(pairSrcIdx) To UBound(pairSrcIdx)
                             Dim dstC As Long: dstC = pairDstIdx(u)
+                            Dim dstRel As Long: dstRel = dstC - firstCol + 1
                             Dim newVal As Variant
                             If pairSrcIdx(u) = COL_BF_IDX Then
                                 newVal = Date + 1
@@ -650,13 +654,15 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
                             Else
                                 newVal = donorSrcVals(dIdx, pairSrcOffset(u))
                             End If
-                            Dim prevVal As Variant: prevVal = outArr(outIdx, dstC)
-                            If CStr(prevVal) <> CStr(newVal) Then
-                                outArr(outIdx, dstC) = newVal
-                                notes.Add Array(outIdx + 1, dstC, prevVal, newVal, _
-                                                 "Source: Donor " & pairLetters(u)(0) & " ? Export " & pairLetters(u)(1) & " (AL=Yes)")
-                            Else
-                                outArr(outIdx, dstC) = newVal
+                            If dstRel >= 1 And dstRel <= width Then
+                                Dim prevVal As Variant: prevVal = outArr(outIdx, dstRel)
+                                If CStr(prevVal) <> CStr(newVal) Then
+                                    outArr(outIdx, dstRel) = newVal
+                                    notes.Add Array(outIdx + 1, dstRel, prevVal, newVal, _
+                                                    "Source: Donor " & pairLetters(u)(0) & " ? Export " & pairLetters(u)(1) & " (AL=Yes)")
+                                Else
+                                    outArr(outIdx, dstRel) = newVal
+                                End If
                             End If
                         Next u
                     End If
