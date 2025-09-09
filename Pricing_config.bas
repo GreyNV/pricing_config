@@ -5,34 +5,6 @@ Attribute VB_Name = "Module1"
 '====================================================================
 Option Explicit
 
-' ========= USER CONFIG =========
-Private Const TOOL_SHEET_NAME As String = "Pricing Configurations"
-Private Const PASTE_START_CELL As String = "Q1"
-Private Const FILTER_COL_LETTER As String = "O"
-Private Const EXPORT_SHEET_NAME As String = "Pricing Configurations"
-
-Private Const DISABLE_NOTES As Boolean = False
-Private Const USE_VBA_COMPUTE As Boolean = True
-
-Private Function MAPPING_PAIRS() As Variant
-    MAPPING_PAIRS = Array( _
-        Array("A", "O"), _
-        Array("B", "T"), _
-        Array("C", "V"), _
-        Array("D", "W"), _
-        Array("E", "X"), _
-        Array("F", "Y"), _
-        Array("G", "AL"), _
-        Array("H", "AM"), _
-        Array("I", "AN"), _
-        Array("J", "AO"), _
-        Array("K", "AP"), _
-        Array("L", "AQ"), _
-        Array("M", "AR"), _
-        Array("N", "AS") _
-    )
-End Function
-
 ' ========= COLUMN INDEX CACHE =========
 Private Const COL_A_IDX As Long = 1
 Private Const COL_B_IDX As Long = 2
@@ -72,6 +44,34 @@ Private Const COL_BF_IDX As Long = 58
 Private Const COL_BG_IDX As Long = 59
 Private Const COL_BH_IDX As Long = 60
 Private Const COL_BI_IDX As Long = 61
+
+' ========= USER CONFIG =========
+Private Const TOOL_SHEET_NAME As String = "Pricing Configurations"
+Private Const PASTE_START_CELL As String = "Q1"
+Private Const FILTER_COL_LETTER As String = "O"
+Private Const EXPORT_SHEET_NAME As String = "Pricing Configurations"
+
+Private Const DISABLE_NOTES As Boolean = False
+Private Const USE_VBA_COMPUTE As Boolean = True
+
+Private Function MAPPING_PAIRS() As Variant
+    MAPPING_PAIRS = Array( _
+        Array("A", "O"), _
+        Array("B", "T"), _
+        Array("C", "V"), _
+        Array("D", "W"), _
+        Array("E", "X"), _
+        Array("F", "Y"), _
+        Array("G", "AL"), _
+        Array("H", "AM"), _
+        Array("I", "AN"), _
+        Array("J", "AO"), _
+        Array("K", "AP"), _
+        Array("L", "AQ"), _
+        Array("M", "AR"), _
+        Array("N", "AS") _
+    )
+End Function
 
 ' ========= BUTTON ENTRY POINTS =========
 Public Sub Btn_ClearPricingData()
