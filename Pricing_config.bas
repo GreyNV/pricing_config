@@ -604,7 +604,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     Dim notes As Collection: Set notes = New Collection
 
     Dim r As Long, outIdx As Long
-    Dim alIdx As Long: alIdx = colAL
+    Dim alRel As Long: alRel = colAL - firstCol + 1
     For r = 1 To UBound(filterVals, 1)
         If UCase$(Trim$(CStr(filterVals(r, 1)))) = "FILTER" Then
             outIdx = outIdx + 1
@@ -617,53 +617,58 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
             ' 2) Overlay mapped values from tool A:N into destination columns unless SKIP (and add notes if changed)
             Dim m As Long
             For m = LBound(mapInfo) To UBound(mapInfo)
-                Dim v As Variant: v = toolVals(r, mapInfo(m)(2))
-                If Not IsSkipValue(v) Then
-                    Dim dcRel As Long: dcRel = mapInfo(m)(3) - firstCol + 1
-                    If dcRel >= 1 And dcRel <= width Then
-                        Dim oldv As Variant: oldv = outArr(outIdx, dcRel)
-                        If CStr(oldv) <> CStr(v) Then
-                            outArr(outIdx, dcRel) = v
-                            notes.Add Array(outIdx + 1, dcRel, oldv, v, _
-                                            "Source: Tool " & mapInfo(m)(0) & " ? Export " & mapInfo(m)(1))
-                        Else
-                            outArr(outIdx, dcRel) = v
+                Dim scRel As Long: scRel = mapInfo(m)(2)
+                If scRel >= 1 And scRel <= colN Then
+                    Dim v As Variant: v = toolVals(r, scRel)
+                    If Not IsSkipValue(v) Then
+                        Dim dcRel As Long: dcRel = mapInfo(m)(3) - firstCol + 1
+                        If dcRel >= 1 And dcRel <= width Then
+                            Dim oldv As Variant: oldv = outArr(outIdx, dcRel)
+                            If CStr(oldv) <> CStr(v) Then
+                                outArr(outIdx, dcRel) = v
+                                notes.Add Array(outIdx + 1, dcRel, oldv, v, _
+                                                "Source: Tool " & mapInfo(m)(0) & " ? Export " & mapInfo(m)(1))
+                            Else
+                                outArr(outIdx, dcRel) = v
+                            End If
                         End If
                     End If
                 End If
             Next m
 
             ' 3) If AL (mapped from G) is "Yes", force AM:AS from donor row's H..N
-            If UCase$(Trim$(CStr(outArr(outIdx, alIdx)))) = "YES" Then
-                Dim asinCurr As String: asinCurr = CStr(vS(r, 1))
-                If Len(asinCurr) > 0 And donorByAsin.Exists(asinCurr) Then
-                    Dim dIdx As Long: dIdx = CLng(donorByAsin(asinCurr))
-                    Dim donorEnd As Variant: donorEnd = donorSrcVals(dIdx, pairSrcOffset(bhIdx))
-                    Dim validDonor As Boolean: validDonor = IsFutureDate(donorEnd)
-                    If validDonor Then
-                        Dim u As Long
-                        For u = LBound(pairSrcIdx) To UBound(pairSrcIdx)
-                            Dim dstC As Long: dstC = pairDstIdx(u)
-                            Dim dstRel As Long: dstRel = dstC - firstCol + 1
-                            Dim newVal As Variant
-                            If pairSrcIdx(u) = COL_BF_IDX Then
-                                newVal = Date + 1
-                            ElseIf pairSrcIdx(u) = COL_BH_IDX Then
-                                newVal = donorEnd
-                            Else
-                                newVal = donorSrcVals(dIdx, pairSrcOffset(u))
-                            End If
-                            If dstRel >= 1 And dstRel <= width Then
-                                Dim prevVal As Variant: prevVal = outArr(outIdx, dstRel)
-                                If CStr(prevVal) <> CStr(newVal) Then
-                                    outArr(outIdx, dstRel) = newVal
-                                    notes.Add Array(outIdx + 1, dstRel, prevVal, newVal, _
-                                                    "Source: Donor " & pairLetters(u)(0) & " ? Export " & pairLetters(u)(1) & " (AL=Yes)")
+            If alRel >= 1 And alRel <= width Then
+                If UCase$(Trim$(CStr(outArr(outIdx, alRel)))) = "YES" Then
+                    Dim asinCurr As String: asinCurr = CStr(vS(r, 1))
+                    If Len(asinCurr) > 0 And donorByAsin.Exists(asinCurr) Then
+                        Dim dIdx As Long: dIdx = CLng(donorByAsin(asinCurr))
+                        Dim donorEnd As Variant: donorEnd = donorSrcVals(dIdx, pairSrcOffset(bhIdx))
+                        Dim validDonor As Boolean: validDonor = IsFutureDate(donorEnd)
+                        If validDonor Then
+                            Dim u As Long
+                            For u = LBound(pairSrcIdx) To UBound(pairSrcIdx)
+                                Dim dstC As Long: dstC = pairDstIdx(u)
+                                Dim dstRel As Long: dstRel = dstC - firstCol + 1
+                                Dim newVal As Variant
+                                If pairSrcIdx(u) = COL_BF_IDX Then
+                                    newVal = Date + 1
+                                ElseIf pairSrcIdx(u) = COL_BH_IDX Then
+                                    newVal = donorEnd
                                 Else
-                                    outArr(outIdx, dstRel) = newVal
+                                    newVal = donorSrcVals(dIdx, pairSrcOffset(u))
                                 End If
-                            End If
-                        Next u
+                                If dstRel >= 1 And dstRel <= width Then
+                                    Dim prevVal As Variant: prevVal = outArr(outIdx, dstRel)
+                                    If CStr(prevVal) <> CStr(newVal) Then
+                                        outArr(outIdx, dstRel) = newVal
+                                        notes.Add Array(outIdx + 1, dstRel, prevVal, newVal, _
+                                                        "Source: Donor " & pairLetters(u)(0) & " ? Export " & pairLetters(u)(1) & " (AL=Yes)")
+                                    Else
+                                        outArr(outIdx, dstRel) = newVal
+                                    End If
+                                End If
+                            Next u
+                        End If
                     End If
                 End If
             End If
