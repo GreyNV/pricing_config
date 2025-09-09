@@ -539,8 +539,11 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     colFilter = ColIndex(FILTER_COL_LETTER)
 
     Dim dataFirstCol As Long: dataFirstCol = startCell.Column  ' Q
-    Dim dataLastCol As Long: dataLastCol = lastCol             ' rightmost used in tool
-    Dim width As Long: width = dataLastCol - dataFirstCol + 1
+    Dim dataLastCol As Long: dataLastCol
+    dataLastCol = Application.Max(lastCol, COL_AS_IDX)
+    Dim width As Long
+    width = dataLastCol - dataFirstCol + 1
+    If width < 1 Then Exit Sub
     Dim firstCol As Long: firstCol = dataFirstCol
 
     ' Create export workbook/sheet
