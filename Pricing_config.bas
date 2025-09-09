@@ -502,7 +502,6 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
     outAP(i, colN) = nVal
 
     Dim skipCount As Long: skipCount = 0
-    Dim c As Long
     For c = colA To colN
         If UCase$(CStr(outAP(i, c))) = "SKIP" Or IsEmpty(outAP(i, c)) Then skipCount = skipCount + 1
     Next c
