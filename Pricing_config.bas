@@ -583,23 +583,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
 
     Dim dataFirstCol As Long: dataFirstCol = startCell.Column  ' Q
     Dim dataLastCol As Long: dataLastCol = Application.Max(lastCol, COL_AS_IDX)
-    Dim width As Long
-    width = dataLastCol - dataFirstCol + 1
-    If DEBUG_LOG Then Debug.Print "BuildFilteredExport: width=" & width
-    If width < 1 Then Exit Sub
-    Dim firstCol As Long: firstCol = dataFirstCol
-
-    ' Create export workbook/sheet
-    Dim wbOut As Workbook, wsOut As Worksheet
-    Set wbOut = Application.Workbooks.Add(xlWBATWorksheet)
-    Set wsOut = wbOut.Worksheets(1)
-    On Error Resume Next: wsOut.Name = EXPORT_SHEET_NAME: On Error GoTo 0
-
-    ' Headers
-    wsOut.Cells(1, 1).Resize(1, width).Value = wsTool.Cells(1, dataFirstCol).Resize(1, width).Value
     Dim maps As Variant: maps = MAPPING_PAIRS
-    FillMappedHeaderBlanksFromTool wsTool, wsOut, maps
-
     Dim mapInfo As Variant
     ReDim mapInfo(LBound(maps) To UBound(maps))
     Dim mi As Long
@@ -626,6 +610,31 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
         If pairSrcIdx(mi) = COL_BH_IDX Then bhIdx = mi
     Next mi
 
+    Dim minDestCol As Long: minDestCol = dataFirstCol
+    Dim maxDestCol As Long: maxDestCol = dataLastCol
+    For mi = LBound(mapInfo) To UBound(mapInfo)
+        minDestCol = Application.Min(minDestCol, CLng(mapInfo(mi)(3)))
+        maxDestCol = Application.Max(maxDestCol, CLng(mapInfo(mi)(3)))
+    Next mi
+    For mi = LBound(pairDstIdx) To UBound(pairDstIdx)
+        minDestCol = Application.Min(minDestCol, CLng(pairDstIdx(mi)))
+        maxDestCol = Application.Max(maxDestCol, CLng(pairDstIdx(mi)))
+    Next mi
+    If minDestCol < dataFirstCol Then dataFirstCol = minDestCol
+    If maxDestCol > dataLastCol Then dataLastCol = maxDestCol
+    Dim width As Long
+    width = dataLastCol
+    If DEBUG_LOG Then Debug.Print "BuildFilteredExport: width=" & width
+    If width < 1 Then Exit Sub
+
+    Dim wbOut As Workbook, wsOut As Worksheet
+    Set wbOut = Application.Workbooks.Add(xlWBATWorksheet)
+    Set wsOut = wbOut.Worksheets(1)
+    On Error Resume Next: wsOut.Name = EXPORT_SHEET_NAME: On Error GoTo 0
+
+    wsOut.Cells(1, 1).Resize(1, width).Value = wsTool.Cells(1, 1).Resize(1, width).Value
+    FillMappedHeaderBlanksFromTool wsTool, wsOut, maps
+
     ' Preload tool blocks
     Dim toolVals As Variant, filterVals As Variant, tailVals As Variant
     toolVals = wsTool.Range("A2", wsTool.Cells(lastRow, colN)).Value2
@@ -651,7 +660,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     Dim errLog As Collection: Set errLog = New Collection
 
     Dim r As Long, outIdx As Long
-    Dim alRel As Long: alRel = colAL - firstCol + 1
+    Dim alRel As Long: alRel = colAL
     Dim asinCurr As String
     For r = 1 To UBound(filterVals, 1)
         asinCurr = CStr(vS(r, 1))
@@ -661,9 +670,9 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
             outIdx = outIdx + 1
             If DEBUG_LOG Then Debug.Print "BuildFilteredExport: exporting row " & r
 
-            ' 1) Copy Q:Last as-is
-            For i = 1 To width
-                outArr(outIdx, i) = tailVals(r, i)
+            ' 1) Copy base columns as-is
+            For i = dataFirstCol To dataLastCol
+                outArr(outIdx, i) = tailVals(r, i - dataFirstCol + 1)
             Next i
 
             ' 2) Overlay mapped values from tool A:N into destination columns unless SKIP (and add notes if changed)
@@ -673,7 +682,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
                 If scRel >= 1 And scRel <= colN Then
                     Dim v As Variant: v = toolVals(r, scRel)
                     If Not IsSkipValue(v) Then
-                        Dim dcRel As Long: dcRel = mapInfo(m)(3) - firstCol + 1
+                        Dim dcRel As Long: dcRel = mapInfo(m)(3)
                         If dcRel >= 1 And dcRel <= width Then
                             Dim oldv As Variant: oldv = outArr(outIdx, dcRel)
                             If CStr(oldv) <> CStr(v) Then
@@ -699,7 +708,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
                             Dim u As Long
                             For u = LBound(pairSrcIdx) To UBound(pairSrcIdx)
                                 Dim dstC As Long: dstC = pairDstIdx(u)
-                                Dim dstRel As Long: dstRel = dstC - firstCol + 1
+                                Dim dstRel As Long: dstRel = dstC
                                 Dim newVal As Variant
                                 If pairSrcIdx(u) = COL_BF_IDX Then
                                     newVal = Date + 1
