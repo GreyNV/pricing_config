@@ -649,10 +649,14 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
 
     Dim outArr As Variant: ReDim outArr(1 To lastRow - 1, 1 To width)
     Dim notes As Collection: Set notes = New Collection
+    Dim errLog As Collection: Set errLog = New Collection
 
     Dim r As Long, outIdx As Long
     Dim alRel As Long: alRel = colAL - firstCol + 1
+    Dim asinCurr As String
     For r = 1 To UBound(filterVals, 1)
+        asinCurr = CStr(vS(r, 1))
+        On Error GoTo RowErr
         If DEBUG_LOG Then Debug.Print "BuildFilteredExport: processing row " & r
         If UCase$(Trim$(CStr(filterVals(r, 1)))) = "FILTER" Then
             outIdx = outIdx + 1
@@ -688,7 +692,6 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
             ' 3) If AL (mapped from G) is "Yes", force AM:AS from donor row's H..N
             If alRel >= 1 And alRel <= width Then
                 If UCase$(Trim$(CStr(outArr(outIdx, alRel)))) = "YES" Then
-                    Dim asinCurr As String: asinCurr = CStr(vS(r, 1))
                     If Len(asinCurr) > 0 And donorByAsin.Exists(asinCurr) Then
                         Dim dIdx As Long: dIdx = CLng(donorByAsin(asinCurr))
                         Dim donorEnd As Variant: donorEnd = donorSrcVals(dIdx, pairSrcOffset(bhIdx))
@@ -721,12 +724,12 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
                     End If
                 End If
             End If
-        End If
+RowNext:
+        On Error GoTo 0
     Next r
 
     If DEBUG_LOG Then Debug.Print "BuildFilteredExport: total exported=" & outIdx
-    If outIdx = 0 Then Exit Sub
-
+    If outIdx = 0 Then GoTo Finish
     ReDim Preserve outArr(1 To outIdx, 1 To width)
     wsOut.Range("A2").Resize(outIdx, width).Value = outArr
 
@@ -747,6 +750,22 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
             MsgBox "Export left unsaved (workbook remains open).", vbInformation
         End If
     End With
+
+Finish:
+    If errLog.Count > 0 Then
+        Dim errItem As Variant, msg As String
+        msg = "Rows skipped due to errors:" & vbCrLf
+        For Each errItem In errLog
+            msg = msg & errItem & vbCrLf
+        Next errItem
+        MsgBox msg, vbExclamation, "BuildFilteredExport"
+    End If
+    Exit Sub
+
+RowErr:
+    errLog.Add "ASIN " & asinCurr & ": " & Err.Description
+    Err.Clear
+    Resume RowNext
 End Sub
 
 Private Sub FillMappedHeaderBlanksFromTool(wsTool As Worksheet, wsOut As Worksheet, mapPairs As Variant)
