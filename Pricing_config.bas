@@ -622,8 +622,9 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     Next mi
     If minDestCol < dataFirstCol Then dataFirstCol = minDestCol
     If maxDestCol > dataLastCol Then dataLastCol = maxDestCol
+    Dim firstCol As Long: firstCol = dataFirstCol
     Dim width As Long
-    width = dataLastCol
+    width = dataLastCol - firstCol + 1
     If DEBUG_LOG Then Debug.Print "BuildFilteredExport: width=" & width
     If width < 1 Then Exit Sub
 
@@ -632,14 +633,14 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     Set wsOut = wbOut.Worksheets(1)
     On Error Resume Next: wsOut.Name = EXPORT_SHEET_NAME: On Error GoTo 0
 
-    wsOut.Cells(1, 1).Resize(1, width).Value = wsTool.Cells(1, 1).Resize(1, width).Value
-    FillMappedHeaderBlanksFromTool wsTool, wsOut, maps
+    wsOut.Cells(1, 1).Resize(1, width).Value = wsTool.Cells(1, firstCol).Resize(1, width).Value
+    FillMappedHeaderBlanksFromTool wsTool, wsOut, maps, firstCol, width
 
     ' Preload tool blocks
     Dim toolVals As Variant, filterVals As Variant, tailVals As Variant
     toolVals = wsTool.Range("A2", wsTool.Cells(lastRow, colN)).Value2
     filterVals = wsTool.Range(wsTool.Cells(2, colFilter), wsTool.Cells(lastRow, colFilter)).Value2
-    tailVals = wsTool.Range(wsTool.Cells(2, dataFirstCol), wsTool.Cells(lastRow, dataLastCol)).Value2
+    tailVals = wsTool.Range(wsTool.Cells(2, firstCol), wsTool.Cells(lastRow, dataLastCol)).Value2
 
     ' Donor map per ASIN (first BB=="Yes")
     Dim vS As Variant, vBB As Variant, donorSrcVals As Variant
@@ -660,7 +661,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     Dim errLog As Collection: Set errLog = New Collection
 
     Dim r As Long, outIdx As Long
-    Dim alRel As Long: alRel = colAL
+    Dim alRel As Long: alRel = colAL - firstCol + 1
     Dim asinCurr As String
     For r = 1 To UBound(filterVals, 1)
         asinCurr = CStr(vS(r, 1))
@@ -671,8 +672,8 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
             If DEBUG_LOG Then Debug.Print "BuildFilteredExport: exporting row " & r
 
             ' 1) Copy base columns as-is
-            For i = dataFirstCol To dataLastCol
-                outArr(outIdx, i) = tailVals(r, i - dataFirstCol + 1)
+            For i = firstCol To dataLastCol
+                outArr(outIdx, i - firstCol + 1) = tailVals(r, i - firstCol + 1)
             Next i
 
             ' 2) Overlay mapped values from tool A:N into destination columns unless SKIP (and add notes if changed)
@@ -682,7 +683,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
                 If scRel >= 1 And scRel <= colN Then
                     Dim v As Variant: v = toolVals(r, scRel)
                     If Not IsSkipValue(v) Then
-                        Dim dcRel As Long: dcRel = mapInfo(m)(3)
+                        Dim dcRel As Long: dcRel = mapInfo(m)(3) - firstCol + 1
                         If dcRel >= 1 And dcRel <= width Then
                             Dim oldv As Variant: oldv = outArr(outIdx, dcRel)
                             If CStr(oldv) <> CStr(v) Then
@@ -708,7 +709,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
                             Dim u As Long
                             For u = LBound(pairSrcIdx) To UBound(pairSrcIdx)
                                 Dim dstC As Long: dstC = pairDstIdx(u)
-                                Dim dstRel As Long: dstRel = dstC
+                                Dim dstRel As Long: dstRel = dstC - firstCol + 1
                                 Dim newVal As Variant
                                 If pairSrcIdx(u) = COL_BF_IDX Then
                                     newVal = Date + 1
@@ -784,14 +785,17 @@ RowErr:
     Resume RowNext
 End Sub
 
-Private Sub FillMappedHeaderBlanksFromTool(wsTool As Worksheet, wsOut As Worksheet, mapPairs As Variant)
+Private Sub FillMappedHeaderBlanksFromTool(wsTool As Worksheet, wsOut As Worksheet, mapPairs As Variant, firstCol As Long, width As Long)
     Dim i As Long
     For i = LBound(mapPairs) To UBound(mapPairs)
         Dim toolCol As String: toolCol = CStr(mapPairs(i)(0))
         Dim destCol As String: destCol = CStr(mapPairs(i)(1))
-        If Len(wsOut.Cells(1, ColIndex(destCol)).Value) = 0 Then
-            Dim hdr As String: hdr = CStr(wsTool.Cells(1, ColIndex(toolCol)).Value)
-            If Len(hdr) > 0 Then wsOut.Cells(1, ColIndex(destCol)).Value = hdr
+        Dim destRel As Long: destRel = ColIndex(destCol) - firstCol + 1
+        If destRel >= 1 And destRel <= width Then
+            If Len(wsOut.Cells(1, destRel).Value) = 0 Then
+                Dim hdr As String: hdr = CStr(wsTool.Cells(1, ColIndex(toolCol)).Value)
+                If Len(hdr) > 0 Then wsOut.Cells(1, destRel).Value = hdr
+            End If
         End If
     Next i
 End Sub
