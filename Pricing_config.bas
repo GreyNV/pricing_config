@@ -730,8 +730,15 @@ RowNext:
 
     If DEBUG_LOG Then Debug.Print "BuildFilteredExport: total exported=" & outIdx
     If outIdx = 0 Then GoTo Finish
-    ReDim Preserve outArr(1 To outIdx, 1 To width)
-    wsOut.Range("A2").Resize(outIdx, width).Value = outArr
+    Dim finalArr() As Variant
+    ReDim finalArr(1 To outIdx, 1 To width)
+    Dim c As Long
+    For r = 1 To outIdx
+        For c = 1 To width
+            finalArr(r, c) = outArr(r, c)
+        Next c
+    Next r
+    wsOut.Range("A2").Resize(outIdx, width).Value = finalArr
 
     Dim ni As Variant
     For Each ni In notes
