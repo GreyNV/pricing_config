@@ -581,7 +581,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     colBI = COL_BI_IDX
     colFilter = ColIndex(FILTER_COL_LETTER)
 
-    Dim dataFirstCol As Long: dataFirstCol = startCell.Column  ' Q
+    Dim firstCol As Long: firstCol = startCell.Column  ' Q
     Dim dataLastCol As Long: dataLastCol = Application.Max(lastCol, COL_AS_IDX)
     Dim maps As Variant: maps = MAPPING_PAIRS
     Dim mapInfo As Variant
@@ -610,19 +610,14 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
         If pairSrcIdx(mi) = COL_BH_IDX Then bhIdx = mi
     Next mi
 
-    Dim minDestCol As Long: minDestCol = dataFirstCol
     Dim maxDestCol As Long: maxDestCol = dataLastCol
     For mi = LBound(mapInfo) To UBound(mapInfo)
-        minDestCol = Application.Min(minDestCol, CLng(mapInfo(mi)(3)))
         maxDestCol = Application.Max(maxDestCol, CLng(mapInfo(mi)(3)))
     Next mi
     For mi = LBound(pairDstIdx) To UBound(pairDstIdx)
-        minDestCol = Application.Min(minDestCol, CLng(pairDstIdx(mi)))
         maxDestCol = Application.Max(maxDestCol, CLng(pairDstIdx(mi)))
     Next mi
-    If minDestCol < dataFirstCol Then dataFirstCol = minDestCol
     If maxDestCol > dataLastCol Then dataLastCol = maxDestCol
-    Dim firstCol As Long: firstCol = dataFirstCol
     Dim width As Long
     width = dataLastCol - firstCol + 1
     If DEBUG_LOG Then Debug.Print "BuildFilteredExport: width=" & width
