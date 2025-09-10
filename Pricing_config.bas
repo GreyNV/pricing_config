@@ -582,8 +582,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     colFilter = ColIndex(FILTER_COL_LETTER)
 
     Dim dataFirstCol As Long: dataFirstCol = startCell.Column  ' Q
-    Dim dataLastCol As Long: dataLastCol
-    dataLastCol = Application.Max(lastCol, COL_AS_IDX)
+    Dim dataLastCol As Long: dataLastCol = Application.Max(lastCol, COL_AS_IDX)
     Dim width As Long
     width = dataLastCol - dataFirstCol + 1
     If DEBUG_LOG Then Debug.Print "BuildFilteredExport: width=" & width
@@ -724,6 +723,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
                     End If
                 End If
             End If
+        End If ' Filter
 RowNext:
         On Error GoTo 0
     Next r
