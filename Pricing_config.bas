@@ -102,7 +102,9 @@ Public Sub Btn_UploadAndProcess()
     ImportAllPricingConfigurationSheets wbSrc, wsTool, wsTool.Range(PASTE_START_CELL)
 
     Dim lastRow As Long, lastCol As Long
-    UsedBounds wsTool, lastRow, lastCol
+    Dim ub As Variant
+    ub = UsedBounds(wsTool)
+    lastRow = ub(0): lastCol = ub(1)
 
     If USE_VBA_COMPUTE Then
         ComputeDerivedColumns_AP wsTool, lastRow
@@ -122,7 +124,9 @@ End Sub
 ' ========= CORE LOGIC =========
 Private Sub ClearPricingData(ws As Worksheet)
     Dim lastRow As Long, lastCol As Long
-    UsedBounds ws, lastRow, lastCol
+    Dim ub As Variant
+    ub = UsedBounds(ws)
+    lastRow = ub(0): lastCol = ub(1)
     If lastRow < 3 Then Exit Sub
     ws.Range(ws.Rows(3), ws.Rows(lastRow)).ClearContents
 End Sub
@@ -157,18 +161,23 @@ Private Sub ImportAllPricingConfigurationSheets(wbSrc As Workbook, wsTool As Wor
     Next sh
 End Sub
 
-Private Function SheetDataRange(ws As Worksheet) As Range
+Private Function SheetDataRange(ws As Worksheet, Optional lastRow As Long = 0, Optional lastCol As Long = 0) As Range
     On Error GoTo EH
-    Dim ur As Range
-    Set ur = ws.UsedRange
-    If ur Is Nothing Then Exit Function
-    Set SheetDataRange = ur
+    If lastRow = 0 Or lastCol = 0 Then
+        Dim ub As Variant
+        ub = UsedBounds(ws)
+        lastRow = ub(0): lastCol = ub(1)
+    End If
+    If lastRow = 1 And lastCol = 1 Then
+        If Len(ws.Cells(1, 1).Value) = 0 Then Exit Function
+    End If
+    Set SheetDataRange = ws.Range(ws.Cells(1, 1), ws.Cells(lastRow, lastCol))
     Exit Function
 EH:
     Set SheetDataRange = Nothing
     On Error GoTo 0
     Err.Raise Err.Number, "SheetDataRange", _
-              "Failed to obtain UsedRange for '" & ws.Name & "': " & Err.Description
+              "Failed to obtain data range for '" & ws.Name & "': " & Err.Description
 End Function
 
 ' ========= ASIN STRUCT COMPUTE =========
@@ -525,7 +534,9 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     Dim startCell As Range: Set startCell = wsTool.Range(pasteStartCellAddress)
 
     Dim lastRow As Long, lastCol As Long
-    UsedBounds wsTool, lastRow, lastCol
+    Dim ub As Variant
+    ub = UsedBounds(wsTool)
+    lastRow = ub(0): lastCol = ub(1)
     If lastRow < 2 Then Exit Sub
 
     Dim colN As Long, colS As Long, colBB As Long, colAL As Long
@@ -605,10 +616,14 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
 
     Dim outArr As Variant: ReDim outArr(1 To lastRow - 1, 1 To width)
     Dim notes As Collection: Set notes = New Collection
+    Dim errLog As Collection: Set errLog = New Collection
 
     Dim r As Long, outIdx As Long
     Dim alRel As Long: alRel = colAL - firstCol + 1
+    Dim asinCurr As String
     For r = 1 To UBound(filterVals, 1)
+        asinCurr = CStr(vS(r, 1))
+        On Error GoTo RowErr
         If UCase$(Trim$(CStr(filterVals(r, 1)))) = "FILTER" Then
             outIdx = outIdx + 1
 
@@ -642,7 +657,6 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
             ' 3) If AL (mapped from G) is "Yes", force AM:AS from donor row's H..N
             If alRel >= 1 And alRel <= width Then
                 If UCase$(Trim$(CStr(outArr(outIdx, alRel)))) = "YES" Then
-                    Dim asinCurr As String: asinCurr = CStr(vS(r, 1))
                     If Len(asinCurr) > 0 And donorByAsin.Exists(asinCurr) Then
                         Dim dIdx As Long: dIdx = CLng(donorByAsin(asinCurr))
                         Dim donorEnd As Variant: donorEnd = donorSrcVals(dIdx, pairSrcOffset(bhIdx))
@@ -675,10 +689,11 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
                     End If
                 End If
             End If
-        End If
+RowNext:
+        On Error GoTo 0
     Next r
 
-    If outIdx = 0 Then Exit Sub
+    If outIdx = 0 Then GoTo Finish
 
     ReDim Preserve outArr(1 To outIdx, 1 To width)
     wsOut.Range("A2").Resize(outIdx, width).Value = outArr
@@ -700,6 +715,22 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
             MsgBox "Export left unsaved (workbook remains open).", vbInformation
         End If
     End With
+
+Finish:
+    If errLog.Count > 0 Then
+        Dim errItem As Variant, msg As String
+        msg = "Rows skipped due to errors:" & vbCrLf
+        For Each errItem In errLog
+            msg = msg & errItem & vbCrLf
+        Next errItem
+        MsgBox msg, vbExclamation, "BuildFilteredExport"
+    End If
+    Exit Sub
+
+RowErr:
+    errLog.Add "ASIN " & asinCurr & ": " & Err.Description
+    Err.Clear
+    Resume RowNext
 End Sub
 
 Private Sub FillMappedHeaderBlanksFromTool(wsTool As Worksheet, wsOut As Worksheet, mapPairs As Variant)
@@ -764,18 +795,27 @@ Private Sub NoteReplace(ByVal tgt As Range, ByVal oldVal As Variant, ByVal newVa
 End Sub
 
 ' ========= UTILITIES =========
-Private Sub UsedBounds(ws As Worksheet, ByRef lastRow As Long, ByRef lastCol As Long)
-    Dim ur As Range
+Private Function UsedBounds(ws As Worksheet) As Variant
+    Dim lastCell As Range
     On Error Resume Next
-    Set ur = ws.UsedRange
+    Set lastCell = ws.Cells.Find(What:="*", LookIn:=xlValues, _
+        SearchOrder:=xlByRows, SearchDirection:=xlPrevious)
     On Error GoTo 0
-    If ur Is Nothing Then
-        lastRow = 1: lastCol = 1
-        Exit Sub
+    If lastCell Is Nothing Then
+        UsedBounds = Array(1, 1)
+        Exit Function
     End If
-    lastRow = ur.Row + ur.Rows.Count - 1
-    lastCol = ur.Column + ur.Columns.Count - 1
-End Sub
+    Dim lastRow As Long, lastCol As Long
+    lastRow = lastCell.Row
+    Set lastCell = ws.Cells.Find(What:="*", LookIn:=xlValues, _
+        SearchOrder:=xlByColumns, SearchDirection:=xlPrevious)
+    If lastCell Is Nothing Then
+        lastCol = 1
+    Else
+        lastCol = lastCell.Column
+    End If
+    UsedBounds = Array(lastRow, lastCol)
+End Function
 
 Private Function ColLetterToNum(ByVal colLetter As String) As Long
     Dim i As Long, n As Long
