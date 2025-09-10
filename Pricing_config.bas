@@ -53,6 +53,7 @@ Private Const EXPORT_SHEET_NAME As String = "Pricing Configurations"
 
 Private Const DISABLE_NOTES As Boolean = False
 Private Const USE_VBA_COMPUTE As Boolean = True
+Private Const DEBUG_LOG As Boolean = True
 
 Private Function MAPPING_PAIRS() As Variant
     MAPPING_PAIRS = Array( _
@@ -77,12 +78,15 @@ End Function
 Public Sub Btn_ClearPricingData()
     On Error GoTo EH
     OptimizeStart
+    If DEBUG_LOG Then Debug.Print "Btn_ClearPricingData: start"
     ClearPricingData ThisWorkbook.Worksheets(TOOL_SHEET_NAME)
+    If DEBUG_LOG Then Debug.Print "Btn_ClearPricingData: after Clear"
     GoTo Finally
 EH:
     MsgBox "Clear failed: " & Err.Description, vbExclamation
 Finally:
     OptimizeEnd
+    If DEBUG_LOG Then Debug.Print "Btn_ClearPricingData: finished"
 End Sub
 
 Public Sub Btn_UploadAndProcess()
@@ -90,7 +94,9 @@ Public Sub Btn_UploadAndProcess()
     OptimizeStart
     Dim wsTool As Worksheet
     Set wsTool = ThisWorkbook.Worksheets(TOOL_SHEET_NAME)
+    If DEBUG_LOG Then Debug.Print "Btn_UploadAndProcess: start"
     ClearPricingData wsTool
+    If DEBUG_LOG Then Debug.Print "Btn_UploadAndProcess: after clear"
 
     Dim srcPath As String
     srcPath = PickSourceWorkbookPath()
@@ -99,7 +105,9 @@ Public Sub Btn_UploadAndProcess()
     If Len(srcPath) = 0 Then GoTo Finally
 
     Set wbSrc = Workbooks.Open(Filename:=srcPath, ReadOnly:=True)
+    If DEBUG_LOG Then Debug.Print "Btn_UploadAndProcess: source opened"
     ImportAllPricingConfigurationSheets wbSrc, wsTool, wsTool.Range(PASTE_START_CELL)
+    If DEBUG_LOG Then Debug.Print "Btn_UploadAndProcess: import complete"
 
     Dim lastRow As Long, lastCol As Long
     Dim ub As Variant
@@ -107,10 +115,14 @@ Public Sub Btn_UploadAndProcess()
     lastRow = ub(0): lastCol = ub(1)
 
     If USE_VBA_COMPUTE Then
+        If DEBUG_LOG Then Debug.Print "Btn_UploadAndProcess: compute start"
         ComputeDerivedColumns_AP wsTool, lastRow
+        If DEBUG_LOG Then Debug.Print "Btn_UploadAndProcess: compute done"
     End If
 
+    If DEBUG_LOG Then Debug.Print "Btn_UploadAndProcess: export start"
     BuildFilteredExport wsTool, PASTE_START_CELL
+    If DEBUG_LOG Then Debug.Print "Btn_UploadAndProcess: export done"
     GoTo Finally
 EH:
     MsgBox "Upload/Process failed: " & Err.Description, vbExclamation
@@ -119,16 +131,20 @@ Finally:
         wbSrc.Close SaveChanges:=False
     End If
     OptimizeEnd
+    If DEBUG_LOG Then Debug.Print "Btn_UploadAndProcess: finished"
 End Sub
 
 ' ========= CORE LOGIC =========
 Private Sub ClearPricingData(ws As Worksheet)
+    If DEBUG_LOG Then Debug.Print "ClearPricingData: ws=" & ws.Name
     Dim lastRow As Long, lastCol As Long
     Dim ub As Variant
     ub = UsedBounds(ws)
     lastRow = ub(0): lastCol = ub(1)
+    If DEBUG_LOG Then Debug.Print "ClearPricingData: lastRow=" & lastRow & " lastCol=" & lastCol
     If lastRow < 3 Then Exit Sub
     ws.Range(ws.Rows(3), ws.Rows(lastRow)).ClearContents
+    If DEBUG_LOG Then Debug.Print "ClearPricingData: cleared through row " & lastRow
 End Sub
 
 Private Function PickSourceWorkbookPath() As String
@@ -146,19 +162,23 @@ Private Function PickSourceWorkbookPath() As String
 End Function
 
 Private Sub ImportAllPricingConfigurationSheets(wbSrc As Workbook, wsTool As Worksheet, pasteStart As Range)
+    If DEBUG_LOG Then Debug.Print "ImportAllPricingConfigurationSheets: start"
     Dim nextPasteRow As Long
     nextPasteRow = pasteStart.Row
     Dim sh As Worksheet
     For Each sh In wbSrc.Worksheets
+        If DEBUG_LOG Then Debug.Print "Import check: " & sh.Name
         If InStr(1, sh.Name, "Pricing Configurations", vbTextCompare) > 0 Then
             Dim rng As Range
             Set rng = SheetDataRange(sh)
             If Not rng Is Nothing Then
                 wsTool.Cells(nextPasteRow, pasteStart.Column).Resize(rng.Rows.Count, rng.Columns.Count).Value = rng.Value
+                If DEBUG_LOG Then Debug.Print "Imported sheet " & sh.Name & " rows=" & rng.Rows.Count
                 nextPasteRow = nextPasteRow + rng.Rows.Count
             End If
         End If
     Next sh
+    If DEBUG_LOG Then Debug.Print "ImportAllPricingConfigurationSheets: done"
 End Sub
 
 Private Function SheetDataRange(ws As Worksheet, Optional lastRow As Long = 0, Optional lastCol As Long = 0) As Range
@@ -168,6 +188,7 @@ Private Function SheetDataRange(ws As Worksheet, Optional lastRow As Long = 0, O
         ub = UsedBounds(ws)
         lastRow = ub(0): lastCol = ub(1)
     End If
+    If DEBUG_LOG Then Debug.Print "SheetDataRange: ws=" & ws.Name & " lastRow=" & lastRow & " lastCol=" & lastCol
     If lastRow = 1 And lastCol = 1 Then
         If Len(ws.Cells(1, 1).Value) = 0 Then Exit Function
     End If
@@ -183,8 +204,10 @@ End Function
 ' ========= ASIN STRUCT COMPUTE =========
 Private Sub ComputeDerivedColumns_AP(ws As Worksheet, lastRow As Long)
     If lastRow < 2 Then Exit Sub
+    If DEBUG_LOG Then Debug.Print "ComputeDerivedColumns_AP: lastRow=" & lastRow
 
     Dim n As Long: n = lastRow - 1
+    If DEBUG_LOG Then Debug.Print "ComputeDerivedColumns_AP: n=" & n
 
     Dim vS As Variant, vAE As Variant, vAJ As Variant, vAL As Variant
     Dim vAM As Variant, vAN As Variant, vAO As Variant, vBB As Variant
@@ -220,16 +243,19 @@ Private Sub ComputeDerivedColumns_AP(ws As Worksheet, lastRow As Long)
     BuildAsinAggregates n, vS, vAE, vAJ, vAL, vAM, vAN, vAO, vBB, vBC, vBD, vBE, vBF, vBG, vBH, vBI, _
                         asinIdx, cnt, firstRow, minAJ, minAJRow, maxAL, donorRow, minBEff, minBEffRow, keyAM, keyAN, keyAO, _
                         hasVarAE, hasVarAJ, hasVarAL, hasVarAM, hasVarAN, hasVarAO, hasVarBB, hasVarBC, hasVarBD, hasVarBE, hasVarBF, hasVarBG, hasVarBH, hasVarBI
+    If DEBUG_LOG Then Debug.Print "ComputeDerivedColumns_AP: aggregates built"
 
     Dim outAP As Variant: ReDim outAP(1 To n, 1 To COL_P_IDX)
     Dim i As Long
     For i = 1 To n
+        If DEBUG_LOG Then Debug.Print "PopulateOutputRow: " & i
         PopulateOutputRow i, outAP, asinIdx, cnt, firstRow, minAJ, minAJRow, maxAL, donorRow, minBEff, minBEffRow, _
                           keyAM, keyAN, keyAO, _
                           hasVarAE, hasVarAJ, hasVarAL, hasVarAM, hasVarAN, hasVarAO, hasVarBB, hasVarBC, hasVarBD, hasVarBE, hasVarBF, hasVarBG, hasVarBH, hasVarBI, _
                           vS, vAE, vAJ, vAL, vAM, vAN, vAO, vBB, vBC, vBD, vBE, vBF, vBG, vBH, vBI
     Next i
     ws.Range("A2", ws.Cells(lastRow, COL_P_IDX)).Value = outAP
+    If DEBUG_LOG Then Debug.Print "ComputeDerivedColumns_AP: output written"
 End Sub
 
 Private Sub BuildAsinAggregates(ByVal n As Long, vS As Variant, vAE As Variant, vAJ As Variant, vAL As Variant, _
@@ -247,6 +273,8 @@ Private Sub BuildAsinAggregates(ByVal n As Long, vS As Variant, vAE As Variant, 
     Set asinIdx = CreateObject("Scripting.Dictionary")
     asinIdx.CompareMode = vbTextCompare
 
+    If DEBUG_LOG Then Debug.Print "BuildAsinAggregates: start n=" & n
+
     Dim cap As Long: cap = 0
     Dim k As Long: k = 0
     Dim i As Long
@@ -257,6 +285,7 @@ Private Sub BuildAsinAggregates(ByVal n As Long, vS As Variant, vAE As Variant, 
     Dim fBH() As Variant, fBI() As Variant
 
     For i = 1 To n
+        If DEBUG_LOG Then Debug.Print "BuildAsinAggregates: row=" & i
         Dim s As String: s = CStr(vS(i, 1))
         If Not asinIdx.Exists(s) Then
             k = k + 1
@@ -377,6 +406,7 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
     Dim asin2 As String: asin2 = CStr(vS(i, 1))
     Dim id As Long: id = CLng(asinIdx(asin2))
     Dim pcount As Long: pcount = cnt(id)
+    If DEBUG_LOG Then Debug.Print "PopulateOutputRow internal: row=" & i & " asin=" & asin2 & " count=" & pcount
     outAP(i, colP) = pcount
 
     If pcount = 1 Then
@@ -531,12 +561,14 @@ End Sub
 
 ' ========= EXPORT =========
 Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As String)
+    If DEBUG_LOG Then Debug.Print "BuildFilteredExport: start"
     Dim startCell As Range: Set startCell = wsTool.Range(pasteStartCellAddress)
 
     Dim lastRow As Long, lastCol As Long
     Dim ub As Variant
     ub = UsedBounds(wsTool)
     lastRow = ub(0): lastCol = ub(1)
+    If DEBUG_LOG Then Debug.Print "BuildFilteredExport: lastRow=" & lastRow & " lastCol=" & lastCol
     If lastRow < 2 Then Exit Sub
 
     Dim colN As Long, colS As Long, colBB As Long, colAL As Long
@@ -554,6 +586,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     dataLastCol = Application.Max(lastCol, COL_AS_IDX)
     Dim width As Long
     width = dataLastCol - dataFirstCol + 1
+    If DEBUG_LOG Then Debug.Print "BuildFilteredExport: width=" & width
     If width < 1 Then Exit Sub
     Dim firstCol As Long: firstCol = dataFirstCol
 
@@ -624,8 +657,10 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     For r = 1 To UBound(filterVals, 1)
         asinCurr = CStr(vS(r, 1))
         On Error GoTo RowErr
+        If DEBUG_LOG Then Debug.Print "BuildFilteredExport: processing row " & r
         If UCase$(Trim$(CStr(filterVals(r, 1)))) = "FILTER" Then
             outIdx = outIdx + 1
+            If DEBUG_LOG Then Debug.Print "BuildFilteredExport: exporting row " & r
 
             ' 1) Copy Q:Last as-is
             For i = 1 To width
@@ -693,8 +728,8 @@ RowNext:
         On Error GoTo 0
     Next r
 
+    If DEBUG_LOG Then Debug.Print "BuildFilteredExport: total exported=" & outIdx
     If outIdx = 0 Then GoTo Finish
-
     ReDim Preserve outArr(1 To outIdx, 1 To width)
     wsOut.Range("A2").Resize(outIdx, width).Value = outArr
 
@@ -757,6 +792,7 @@ End Function
 ' ========= NOTES (optional) =========
 Private Sub AddCellNote(ByVal tgt As Range, ByVal msg As String)
     If DISABLE_NOTES Then Exit Sub
+    If DEBUG_LOG Then Debug.Print "AddCellNote: " & tgt.Address
 
     ' Delete any existing legacy comment
     If Not tgt.Comment Is Nothing Then tgt.Comment.Delete
@@ -784,6 +820,7 @@ End Sub
 
 Private Sub NoteReplace(ByVal tgt As Range, ByVal oldVal As Variant, ByVal newVal As Variant, ByVal reason As String)
     If DISABLE_NOTES Then Exit Sub
+    If DEBUG_LOG Then Debug.Print "NoteReplace: " & tgt.Address
     Dim o As String, n As String
     o = CStr(oldVal): n = CStr(newVal)
     Dim msg As String
@@ -796,12 +833,14 @@ End Sub
 
 ' ========= UTILITIES =========
 Private Function UsedBounds(ws As Worksheet) As Variant
+    If DEBUG_LOG Then Debug.Print "UsedBounds: ws=" & ws.Name
     Dim lastCell As Range
     On Error Resume Next
     Set lastCell = ws.Cells.Find(What:="*", LookIn:=xlValues, _
         SearchOrder:=xlByRows, SearchDirection:=xlPrevious)
     On Error GoTo 0
     If lastCell Is Nothing Then
+        If DEBUG_LOG Then Debug.Print "UsedBounds: empty"
         UsedBounds = Array(1, 1)
         Exit Function
     End If
@@ -814,6 +853,7 @@ Private Function UsedBounds(ws As Worksheet) As Variant
     Else
         lastCol = lastCell.Column
     End If
+    If DEBUG_LOG Then Debug.Print "UsedBounds: lastRow=" & lastRow & " lastCol=" & lastCol
     UsedBounds = Array(lastRow, lastCol)
 End Function
 
