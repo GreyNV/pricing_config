@@ -619,7 +619,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     Next mi
     If maxDestCol > dataLastCol Then dataLastCol = maxDestCol
     Dim width As Long
-    width = dataLastCol - firstCol + 1
+    width = Application.Max(dataLastCol, 15)
     If DEBUG_LOG Then Debug.Print "BuildFilteredExport: width=" & width
     If width < 1 Then Exit Sub
 
@@ -628,8 +628,8 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     Set wsOut = wbOut.Worksheets(1)
     On Error Resume Next: wsOut.Name = EXPORT_SHEET_NAME: On Error GoTo 0
 
-    wsOut.Cells(1, 1).Resize(1, width).Value = wsTool.Cells(1, firstCol).Resize(1, width).Value
-    FillMappedHeaderBlanksFromTool wsTool, wsOut, maps, firstCol, width
+    wsOut.Cells(1, 1).Resize(1, width).Value = wsTool.Cells(1, 1).Resize(1, width).Value
+    FillMappedHeaderBlanksFromTool wsTool, wsOut, maps, 1, width
 
     ' Preload tool blocks
     Dim toolVals As Variant, filterVals As Variant, tailVals As Variant
@@ -656,7 +656,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     Dim errLog As Collection: Set errLog = New Collection
 
     Dim r As Long, outIdx As Long
-    Dim alRel As Long: alRel = colAL - firstCol + 1
+    Dim alRel As Long: alRel = colAL
     Dim asinCurr As String
     For r = 1 To UBound(filterVals, 1)
         asinCurr = CStr(vS(r, 1))
@@ -668,7 +668,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
 
             ' 1) Copy base columns as-is
             For i = firstCol To dataLastCol
-                outArr(outIdx, i - firstCol + 1) = tailVals(r, i - firstCol + 1)
+                outArr(outIdx, i) = tailVals(r, i - firstCol + 1)
             Next i
 
             ' 2) Overlay mapped values from tool A:N into destination columns unless SKIP (and add notes if changed)
@@ -678,7 +678,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
                 If scRel >= 1 And scRel <= colN Then
                     Dim v As Variant: v = toolVals(r, scRel)
                     If Not IsSkipValue(v) Then
-                        Dim dcRel As Long: dcRel = mapInfo(m)(3) - firstCol + 1
+                        Dim dcRel As Long: dcRel = mapInfo(m)(3)
                         If dcRel >= 1 And dcRel <= width Then
                             Dim oldv As Variant: oldv = outArr(outIdx, dcRel)
                             If CStr(oldv) <> CStr(v) Then
@@ -704,7 +704,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
                             Dim u As Long
                             For u = LBound(pairSrcIdx) To UBound(pairSrcIdx)
                                 Dim dstC As Long: dstC = pairDstIdx(u)
-                                Dim dstRel As Long: dstRel = dstC - firstCol + 1
+                                Dim dstRel As Long: dstRel = dstC
                                 Dim newVal As Variant
                                 If pairSrcIdx(u) = COL_BF_IDX Then
                                     newVal = Date + 1
