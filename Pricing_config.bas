@@ -463,7 +463,6 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     ' Headers
     wsOut.Cells(1, 1).Resize(1, width).Value = wsTool.Cells(1, dataFirstCol).Resize(1, width).Value
     Dim maps As Variant: maps = MAPPING_PAIRS
-    EnsureMappedHeadersFromTool wsTool, wsOut, maps
 
     ' Preload tool blocks
     Dim toolVals As Variant, filterVals As Variant
@@ -554,16 +553,6 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
             MsgBox "Export left unsaved (workbook remains open).", vbInformation
         End If
     End With
-End Sub
-
-Private Sub EnsureMappedHeadersFromTool(wsTool As Worksheet, wsOut As Worksheet, mapPairs As Variant)
-    Dim i As Long
-    For i = LBound(mapPairs) To UBound(mapPairs)
-        Dim toolCol As String: toolCol = CStr(mapPairs(i)(0))
-        Dim destCol As String:  destCol = CStr(mapPairs(i)(1))
-        Dim hdr As String: hdr = CStr(wsTool.Cells(1, ColLetterToNum(toolCol)).Value)
-        If Len(hdr) > 0 Then wsOut.Cells(1, ColLetterToNum(destCol)).Value = hdr
-    Next i
 End Sub
 
 Private Function IsSkipValue(v As Variant) As Boolean

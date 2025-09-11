@@ -23,7 +23,7 @@ This repository contains a VBA module for managing pricing configuration data in
 
 ## Feature Additions
 - Reuse existing patterns for import/export of pricing data.
-- When adding columns, update `MAPPING_PAIRS`, header mapping (`EnsureMappedHeadersFromTool`), and any relevant documentation.
+- When adding columns, update `MAPPING_PAIRS` and any relevant documentation.
 - Ensure new logic handles workbook bounds via `UsedBounds` and column conversions via `ColLetterToNum`.
 
 ## Testing
