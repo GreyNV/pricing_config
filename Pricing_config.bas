@@ -618,9 +618,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
         maxDestCol = Application.Max(maxDestCol, CLng(pairDstIdx(mi)))
     Next mi
     If maxDestCol > dataLastCol Then dataLastCol = maxDestCol
-    Dim tailWidth As Long: tailWidth = dataLastCol - firstCol + 1
-    Dim width As Long
-    width = Application.Max(maxDestCol, tailWidth)
+    Dim width As Long: width = dataLastCol - firstCol + 1
     If DEBUG_LOG Then Debug.Print "BuildFilteredExport: width=" & width
     If width < 1 Then Exit Sub
 
@@ -629,8 +627,8 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     Set wsOut = wbOut.Worksheets(1)
     On Error Resume Next: wsOut.Name = EXPORT_SHEET_NAME: On Error GoTo 0
 
-    wsOut.Cells(1, 1).Resize(1, tailWidth).Value = _
-        wsTool.Cells(1, firstCol).Resize(1, tailWidth).Value
+    wsOut.Cells(1, 1).Resize(1, width).Value = _
+        wsTool.Cells(1, firstCol).Resize(1, width).Value
 
     ' Preload tool blocks
     Dim toolVals As Variant, filterVals As Variant, tailVals As Variant
@@ -657,7 +655,8 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     Dim errLog As Collection: Set errLog = New Collection
 
     Dim r As Long, outIdx As Long
-    Dim alRel As Long: alRel = colAL
+    Dim alRel As Long: alRel = colAL - firstCol + 1
+    Dim destOffset As Long
     Dim asinCurr As String
     For r = 1 To UBound(filterVals, 1)
         asinCurr = CStr(vS(r, 1))
@@ -668,7 +667,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
             If DEBUG_LOG Then Debug.Print "BuildFilteredExport: exporting row " & r
 
             ' 1) Copy base columns as-is
-            For i = 1 To tailWidth
+            For i = 1 To width
                 outArr(outIdx, i) = tailVals(r, i)
             Next i
 
@@ -680,14 +679,15 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
                     Dim v As Variant: v = toolVals(r, scRel)
                     If Not IsSkipValue(v) Then
                         Dim dcRel As Long: dcRel = mapInfo(m)(3)
-                        If dcRel >= 1 And dcRel <= width Then
-                            Dim oldv As Variant: oldv = outArr(outIdx, dcRel)
+                        destOffset = dcRel - firstCol + 1
+                        If destOffset >= 1 And destOffset <= width Then
+                            Dim oldv As Variant: oldv = outArr(outIdx, destOffset)
                             If CStr(oldv) <> CStr(v) Then
-                                outArr(outIdx, dcRel) = v
-                                notes.Add Array(outIdx + 1, dcRel, oldv, v, _
+                                outArr(outIdx, destOffset) = v
+                                notes.Add Array(outIdx + 1, destOffset, oldv, v, _
                                                 "Source: Tool " & mapInfo(m)(0) & " ? Export " & mapInfo(m)(1))
                             Else
-                                outArr(outIdx, dcRel) = v
+                                outArr(outIdx, destOffset) = v
                             End If
                         End If
                     End If
@@ -705,7 +705,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
                             Dim u As Long
                             For u = LBound(pairSrcIdx) To UBound(pairSrcIdx)
                                 Dim dstC As Long: dstC = pairDstIdx(u)
-                                Dim dstRel As Long: dstRel = dstC
+                                destOffset = dstC - firstCol + 1
                                 Dim newVal As Variant
                                 If pairSrcIdx(u) = COL_BF_IDX Then
                                     newVal = Date + 1
@@ -714,14 +714,14 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
                                 Else
                                     newVal = donorSrcVals(dIdx, pairSrcOffset(u))
                                 End If
-                                If dstRel >= 1 And dstRel <= width Then
-                                    Dim prevVal As Variant: prevVal = outArr(outIdx, dstRel)
+                                If destOffset >= 1 And destOffset <= width Then
+                                    Dim prevVal As Variant: prevVal = outArr(outIdx, destOffset)
                                     If CStr(prevVal) <> CStr(newVal) Then
-                                        outArr(outIdx, dstRel) = newVal
-                                        notes.Add Array(outIdx + 1, dstRel, prevVal, newVal, _
+                                        outArr(outIdx, destOffset) = newVal
+                                        notes.Add Array(outIdx + 1, destOffset, prevVal, newVal, _
                                                         "Source: Donor " & pairLetters(u)(0) & " ? Export " & pairLetters(u)(1) & " (AL=Yes)")
                                     Else
-                                        outArr(outIdx, dstRel) = newVal
+                                        outArr(outIdx, destOffset) = newVal
                                     End If
                                 End If
                             Next u
@@ -781,15 +781,16 @@ RowErr:
     Resume RowNext
 End Sub
 
-Private Sub EnsureMappedHeadersFromTool(wsTool As Worksheet, wsOut As Worksheet, mapPairs As Variant, width As Long)
+Private Sub EnsureMappedHeadersFromTool(wsTool As Worksheet, wsOut As Worksheet, mapPairs As Variant, width As Long, firstCol As Long)
     Dim i As Long
     For i = LBound(mapPairs) To UBound(mapPairs)
         Dim srcCol As String: srcCol = CStr(mapPairs(i)(0))
         Dim destCol As String: destCol = CStr(mapPairs(i)(1))
         Dim destIdx As Long: destIdx = ColIndex(destCol)
-        If destIdx >= 1 And destIdx <= width Then
+        Dim destOffset As Long: destOffset = destIdx - firstCol + 1
+        If destOffset >= 1 And destOffset <= width Then
             Dim hdr As String: hdr = CStr(wsTool.Cells(1, ColIndex(srcCol)).Value)
-            If Len(hdr) > 0 Then wsOut.Cells(1, destIdx).Value = hdr
+            If Len(hdr) > 0 Then wsOut.Cells(1, destOffset).Value = hdr
         End If
     Next i
 End Sub
