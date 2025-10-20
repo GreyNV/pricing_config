@@ -149,10 +149,10 @@ End Sub
 
 Private Function PickSourceWorkbookPath() As String
     With Application.FileDialog(msoFileDialogFilePicker)
-        .Title = "Select source Excel file"
+        .Title = "Select source CSV file"
         .AllowMultiSelect = False
         .Filters.Clear
-        .Filters.Add "Excel Files", "*.xlsx;*.xlsm;*.xlsb;*.xls"
+        .Filters.Add "CSV Files", "*.csv"
         If .Show = -1 Then
             PickSourceWorkbookPath = .SelectedItems(1)
         Else
@@ -232,7 +232,8 @@ Private Sub ComputeDerivedColumns_AP(ws As Worksheet, lastRow As Long)
 
     Dim asinIdx As Object
     Dim cnt() As Long, firstRow() As Long, minAJ() As Double, minAJRow() As Long
-    Dim maxAL() As Double, donorRow() As Long, minBEff() As Double, minBEffRow() As Long
+    Dim maxAL() As Double, donorRow() As Long, hasFutureSale() As Boolean
+    Dim minBEff() As Double, minBEffRow() As Long
     Dim keyAM() As Variant, keyAN() As Variant, keyAO() As Variant
     ' True when column values differ across rows for the ASIN
     Dim hasVarAE() As Boolean, hasVarAJ() As Boolean, hasVarAL() As Boolean, hasVarAM() As Boolean
@@ -241,7 +242,7 @@ Private Sub ComputeDerivedColumns_AP(ws As Worksheet, lastRow As Long)
     Dim hasVarBH() As Boolean, hasVarBI() As Boolean
 
     BuildAsinAggregates n, vS, vAE, vAJ, vAL, vAM, vAN, vAO, vBB, vBC, vBD, vBE, vBF, vBG, vBH, vBI, _
-                        asinIdx, cnt, firstRow, minAJ, minAJRow, maxAL, donorRow, minBEff, minBEffRow, keyAM, keyAN, keyAO, _
+                        asinIdx, cnt, firstRow, minAJ, minAJRow, maxAL, donorRow, hasFutureSale, minBEff, minBEffRow, keyAM, keyAN, keyAO, _
                         hasVarAE, hasVarAJ, hasVarAL, hasVarAM, hasVarAN, hasVarAO, hasVarBB, hasVarBC, hasVarBD, hasVarBE, hasVarBF, hasVarBG, hasVarBH, hasVarBI
     If DEBUG_LOG Then Debug.Print "ComputeDerivedColumns_AP: aggregates built"
 
@@ -249,7 +250,7 @@ Private Sub ComputeDerivedColumns_AP(ws As Worksheet, lastRow As Long)
     Dim i As Long
     For i = 1 To n
         If DEBUG_LOG Then Debug.Print "PopulateOutputRow: " & i
-        PopulateOutputRow i, outAP, asinIdx, cnt, firstRow, minAJ, minAJRow, maxAL, donorRow, minBEff, minBEffRow, _
+        PopulateOutputRow i, outAP, asinIdx, cnt, firstRow, minAJ, minAJRow, maxAL, donorRow, hasFutureSale, minBEff, minBEffRow, _
                           keyAM, keyAN, keyAO, _
                           hasVarAE, hasVarAJ, hasVarAL, hasVarAM, hasVarAN, hasVarAO, hasVarBB, hasVarBC, hasVarBD, hasVarBE, hasVarBF, hasVarBG, hasVarBH, hasVarBI, _
                           vS, vAE, vAJ, vAL, vAM, vAN, vAO, vBB, vBC, vBD, vBE, vBF, vBG, vBH, vBI
@@ -263,7 +264,7 @@ Private Sub BuildAsinAggregates(ByVal n As Long, vS As Variant, vAE As Variant, 
                                 vBE As Variant, vBF As Variant, vBG As Variant, vBH As Variant, vBI As Variant, _
                                 ByRef asinIdx As Object, ByRef cnt() As Long, ByRef firstRow() As Long, _
                                 ByRef minAJ() As Double, ByRef minAJRow() As Long, ByRef maxAL() As Double, _
-                                ByRef donorRow() As Long, ByRef minBEff() As Double, ByRef minBEffRow() As Long, _
+                                ByRef donorRow() As Long, ByRef hasFutureSale() As Boolean, ByRef minBEff() As Double, ByRef minBEffRow() As Long, _
                                 ByRef keyAM() As Variant, ByRef keyAN() As Variant, ByRef keyAO() As Variant, _
                                 ByRef hasVarAE() As Boolean, ByRef hasVarAJ() As Boolean, ByRef hasVarAL() As Boolean, ByRef hasVarAM() As Boolean, _
                                 ByRef hasVarAN() As Boolean, ByRef hasVarAO() As Boolean, ByRef hasVarBB() As Boolean, ByRef hasVarBC() As Boolean, _
@@ -283,6 +284,7 @@ Private Sub BuildAsinAggregates(ByVal n As Long, vS As Variant, vAE As Variant, 
     Dim fAN() As Variant, fAO() As Variant, fBB() As Variant, fBC() As Variant
     Dim fBD() As Variant, fBE() As Variant, fBF() As Variant, fBG() As Variant
     Dim fBH() As Variant, fBI() As Variant
+    Dim campaignHasFuture() As Boolean, campaignVal() As Double
 
     For i = 1 To n
         If DEBUG_LOG Then Debug.Print "BuildAsinAggregates: row=" & i
@@ -292,7 +294,7 @@ Private Sub BuildAsinAggregates(ByVal n As Long, vS As Variant, vAE As Variant, 
             If k > cap Then
                 cap = IIf(cap = 0, 256, cap * 2)
                 ReDim Preserve cnt(1 To cap), firstRow(1 To cap), minAJ(1 To cap), minAJRow(1 To cap), maxAL(1 To cap), _
-                                donorRow(1 To cap), minBEff(1 To cap), minBEffRow(1 To cap), _
+                                donorRow(1 To cap), hasFutureSale(1 To cap), minBEff(1 To cap), minBEffRow(1 To cap), _
                                 keyAM(1 To cap), keyAN(1 To cap), keyAO(1 To cap)
                 ReDim Preserve fAE(1 To cap), hasVarAE(1 To cap), fAJ(1 To cap), hasVarAJ(1 To cap), _
                                 fAL(1 To cap), hasVarAL(1 To cap), fAM(1 To cap), hasVarAM(1 To cap), _
@@ -301,6 +303,7 @@ Private Sub BuildAsinAggregates(ByVal n As Long, vS As Variant, vAE As Variant, 
                                 fBD(1 To cap), hasVarBD(1 To cap), fBE(1 To cap), hasVarBE(1 To cap), _
                                 fBF(1 To cap), hasVarBF(1 To cap), fBG(1 To cap), hasVarBG(1 To cap), _
                                 fBH(1 To cap), hasVarBH(1 To cap), fBI(1 To cap), hasVarBI(1 To cap)
+                ReDim Preserve campaignHasFuture(1 To cap), campaignVal(1 To cap)
             End If
             asinIdx(s) = k
             cnt(k) = 0
@@ -308,9 +311,12 @@ Private Sub BuildAsinAggregates(ByVal n As Long, vS As Variant, vAE As Variant, 
             minAJ(k) = 1E+308
             minAJRow(k) = 0
             maxAL(k) = -1E+308
+            hasFutureSale(k) = False
             minBEff(k) = 1E+308: minBEffRow(k) = 0
             keyAM(k) = Empty: keyAN(k) = Empty: keyAO(k) = Empty
             donorRow(k) = 0
+            campaignHasFuture(k) = False
+            campaignVal(k) = -1E+308
             fAE(k) = Empty: fAJ(k) = Empty: fAL(k) = Empty
             fAM(k) = Empty: fAN(k) = Empty: fAO(k) = Empty
             fBB(k) = Empty: fBC(k) = Empty: fBD(k) = Empty
@@ -360,13 +366,48 @@ Private Sub BuildAsinAggregates(ByVal n As Long, vS As Variant, vAE As Variant, 
             Dim alv As Double: alv = CDbl(vAL(i, 1))
             If alv > maxAL(idx) Then maxAL(idx) = alv
         End If
+
+        Dim saleVal As Variant: saleVal = vBH(i, 1)
+        Dim saleIsFuture As Boolean: saleIsFuture = IsFutureDate(saleVal)
+        If saleIsFuture Then hasFutureSale(idx) = True
+
+        Dim campaignVariant As Variant: campaignVariant = vBG(i, 1)
+        Dim campaignSerial As Double: campaignSerial = -1E+308
+        Dim hasCampaignDate As Boolean: hasCampaignDate = False
+        If IsDate(campaignVariant) Then
+            campaignSerial = CDbl(CDate(campaignVariant))
+            hasCampaignDate = True
+        End If
+
+        Dim replaceCampaign As Boolean: replaceCampaign = False
         If donorRow(idx) = 0 Then
-            If UCase$(Trim$(CStr(vBB(i, 1)))) = "YES" Then donorRow(idx) = i
+            replaceCampaign = True
+        ElseIf saleIsFuture Then
+            If campaignHasFuture(idx) Then
+                If hasCampaignDate And campaignSerial > campaignVal(idx) Then replaceCampaign = True
+            Else
+                replaceCampaign = True
+            End If
+        ElseIf Not campaignHasFuture(idx) Then
+            If hasCampaignDate And campaignSerial > campaignVal(idx) Then replaceCampaign = True
+        End If
+
+        If replaceCampaign Then
+            donorRow(idx) = i
+            campaignHasFuture(idx) = saleIsFuture
+            If hasCampaignDate Then
+                campaignVal(idx) = campaignSerial
+            Else
+                campaignVal(idx) = -1E+308
+            End If
+            keyAM(idx) = vAM(i, 1)
+            keyAN(idx) = vAN(i, 1)
+            keyAO(idx) = vAO(i, 1)
         End If
     Next i
 
     ReDim Preserve cnt(1 To k), firstRow(1 To k), minAJ(1 To k), minAJRow(1 To k), _
-                    maxAL(1 To k), donorRow(1 To k), minBEff(1 To k), minBEffRow(1 To k), _
+                    maxAL(1 To k), donorRow(1 To k), hasFutureSale(1 To k), minBEff(1 To k), minBEffRow(1 To k), _
                     keyAM(1 To k), keyAN(1 To k), keyAO(1 To k), _
                     hasVarAE(1 To k), hasVarAJ(1 To k), hasVarAL(1 To k), hasVarAM(1 To k), hasVarAN(1 To k), _
                     hasVarAO(1 To k), hasVarBB(1 To k), hasVarBC(1 To k), hasVarBD(1 To k), hasVarBE(1 To k), _
@@ -375,7 +416,7 @@ End Sub
 
 Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx As Object, _
                               cnt() As Long, firstRow() As Long, minAJ() As Double, minAJRow() As Long, _
-                              maxAL() As Double, donorRow() As Long, minBEff() As Double, minBEffRow() As Long, _
+                              maxAL() As Double, donorRow() As Long, hasFutureSale() As Boolean, minBEff() As Double, minBEffRow() As Long, _
                               keyAM() As Variant, keyAN() As Variant, keyAO() As Variant, _
                               hasVarAE() As Boolean, hasVarAJ() As Boolean, hasVarAL() As Boolean, hasVarAM() As Boolean, _
                               hasVarAN() As Boolean, hasVarAO() As Boolean, hasVarBB() As Boolean, hasVarBC() As Boolean, _
@@ -403,6 +444,7 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
     colO = COL_O_IDX
     colP = COL_P_IDX
 
+    Dim c As Long
     Dim asin2 As String: asin2 = CStr(vS(i, 1))
     Dim id As Long: id = CLng(asinIdx(asin2))
     Dim pcount As Long: pcount = cnt(id)
@@ -410,7 +452,14 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
     outAP(i, colP) = pcount
 
     If pcount = 1 Then
-        Dim c As Long
+        For c = colA To colN
+            outAP(i, c) = "SKIP"
+        Next c
+        outAP(i, colO) = "SKIP"
+        Exit Sub
+    End If
+
+    If Not hasFutureSale(id) Then
         For c = colA To colN
             outAP(i, c) = "SKIP"
         Next c
@@ -429,7 +478,15 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
     outAP(i, colB) = Brow
 
     Dim keyRow As Long
-    keyRow = IIf(minBEffRow(id) > 0, minBEffRow(id), minAJRow(id))
+    If donorRow(id) > 0 Then
+        keyRow = donorRow(id)
+    ElseIf minBEffRow(id) > 0 Then
+        keyRow = minBEffRow(id)
+    ElseIf minAJRow(id) > 0 Then
+        keyRow = minAJRow(id)
+    Else
+        keyRow = firstRow(id)
+    End If
 
     If hasVarAE(id) Then
         If UCase$(CStr(vAE(i, 1))) <> "YES" Then outAP(i, colA) = "Yes" Else outAP(i, colA) = "SKIP"
@@ -452,7 +509,12 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
                 outAP(i, colD) = "Product Sphere"
             End If
         Else
-            outAP(i, colD) = keyAM(id)
+            Dim prefD As Variant: prefD = keyAM(id)
+            If Len(Trim$(CStr(prefD))) > 0 And UCase$(CStr(prefD)) <> "SKIP" Then
+                outAP(i, colD) = prefD
+            Else
+                outAP(i, colD) = "Product Sphere"
+            End If
         End If
     Else
         outAP(i, colD) = "SKIP"
@@ -468,7 +530,12 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
                 outAP(i, colE) = "Increase Margin Maintain Unit Sales"
             End If
         Else
-            outAP(i, colE) = keyAN(id)
+            Dim prefE As Variant: prefE = keyAN(id)
+            If Len(Trim$(CStr(prefE))) > 0 And UCase$(CStr(prefE)) <> "SKIP" Then
+                outAP(i, colE) = prefE
+            Else
+                outAP(i, colE) = "Increase Margin Maintain Unit Sales"
+            End If
         End If
     Else
         outAP(i, colE) = "SKIP"
@@ -483,7 +550,12 @@ Private Sub PopulateOutputRow(ByVal i As Long, ByRef outAP As Variant, asinIdx A
                 outAP(i, colF) = ""
             End If
         Else
-            outAP(i, colF) = keyAO(id)
+            Dim prefF As Variant: prefF = keyAO(id)
+            If Len(Trim$(CStr(prefF))) > 0 And UCase$(CStr(prefF)) <> "SKIP" Then
+                outAP(i, colF) = prefF
+            Else
+                outAP(i, colF) = ""
+            End If
         End If
     Else
         outAP(i, colF) = "SKIP"
@@ -601,13 +673,19 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
         Array("BF", "AP"), Array("BG", "AQ"), Array("BH", "AR"), Array("BI", "AS") _
     )
     Dim pairSrcIdx As Variant, pairDstIdx As Variant, pairSrcOffset() As Long
-    Dim bhIdx As Long
+    Dim pairDestOffsets() As Long, bhIdx As Long
     pairSrcIdx = Array(COL_BC_IDX, COL_BD_IDX, COL_BE_IDX, COL_BF_IDX, COL_BG_IDX, COL_BH_IDX, COL_BI_IDX)
     pairDstIdx = Array(COL_AM_IDX, COL_AN_IDX, COL_AO_IDX, COL_AP_IDX, COL_AQ_IDX, COL_AR_IDX, COL_AS_IDX)
     ReDim pairSrcOffset(LBound(pairSrcIdx) To UBound(pairSrcIdx))
+    ReDim pairDestOffsets(LBound(pairDstIdx) To UBound(pairDstIdx))
     For mi = LBound(pairSrcIdx) To UBound(pairSrcIdx)
         pairSrcOffset(mi) = pairSrcIdx(mi) - colBC + 1
         If pairSrcIdx(mi) = COL_BH_IDX Then bhIdx = mi
+    Next mi
+    For mi = LBound(pairDstIdx) To UBound(pairDstIdx)
+        Dim pairDestHeader As String: pairDestHeader = CStr(wsTool.Cells(1, pairDstIdx(mi)).Value)
+        pairDestOffsets(mi) = HeaderOffset(headerOffsets, pairDestHeader, _
+                               "Donor " & CStr(pairLetters(mi)(0)) & " → Export " & CStr(pairLetters(mi)(1)))
     Next mi
 
     Dim maxDestCol As Long: maxDestCol = dataLastCol
@@ -627,8 +705,20 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
     Set wsOut = wbOut.Worksheets(1)
     On Error Resume Next: wsOut.Name = EXPORT_SHEET_NAME: On Error GoTo 0
 
-    wsOut.Cells(1, 1).Resize(1, width).Value = _
-        wsTool.Cells(1, firstCol).Resize(1, width).Value
+    Dim exportHeaders As Variant
+    exportHeaders = wsTool.Cells(1, firstCol).Resize(1, width).Value
+    wsOut.Cells(1, 1).Resize(1, width).Value = exportHeaders
+
+    Dim headerOffsets As Object
+    Set headerOffsets = BuildHeaderOffsets(exportHeaders)
+
+    Dim mapDestOffsets() As Long
+    ReDim mapDestOffsets(LBound(mapInfo) To UBound(mapInfo))
+    For mi = LBound(mapInfo) To UBound(mapInfo)
+        Dim destHeader As String: destHeader = CStr(wsTool.Cells(1, CLng(mapInfo(mi)(3))).Value)
+        mapDestOffsets(mi) = HeaderOffset(headerOffsets, destHeader, _
+                            "Tool " & CStr(mapInfo(mi)(0)) & " → Export " & CStr(mapInfo(mi)(1)))
+    Next mi
 
     ' Preload tool blocks
     Dim toolVals As Variant, filterVals As Variant, tailVals As Variant
@@ -678,14 +768,13 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
                 If scRel >= 1 And scRel <= colN Then
                     Dim v As Variant: v = toolVals(r, scRel)
                     If Not IsSkipValue(v) Then
-                        Dim dcRel As Long: dcRel = mapInfo(m)(3)
-                        destOffset = dcRel - firstCol + 1
+                        destOffset = mapDestOffsets(m)
                         If destOffset >= 1 And destOffset <= width Then
                             Dim oldv As Variant: oldv = outArr(outIdx, destOffset)
                             If CStr(oldv) <> CStr(v) Then
                                 outArr(outIdx, destOffset) = v
                                 notes.Add Array(outIdx + 1, destOffset, oldv, v, _
-                                                "Source: Tool " & mapInfo(m)(0) & " ? Export " & mapInfo(m)(1))
+                                                "Source: Tool " & mapInfo(m)(0) & " → Export " & mapInfo(m)(1))
                             Else
                                 outArr(outIdx, destOffset) = v
                             End If
@@ -704,8 +793,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
                         If validDonor Then
                             Dim u As Long
                             For u = LBound(pairSrcIdx) To UBound(pairSrcIdx)
-                                Dim dstC As Long: dstC = pairDstIdx(u)
-                                destOffset = dstC - firstCol + 1
+                                destOffset = pairDestOffsets(u)
                                 Dim newVal As Variant
                                 If pairSrcIdx(u) = COL_BF_IDX Then
                                     newVal = Date + 1
@@ -719,7 +807,7 @@ Private Sub BuildFilteredExport(wsTool As Worksheet, pasteStartCellAddress As St
                                     If CStr(prevVal) <> CStr(newVal) Then
                                         outArr(outIdx, destOffset) = newVal
                                         notes.Add Array(outIdx + 1, destOffset, prevVal, newVal, _
-                                                        "Source: Donor " & pairLetters(u)(0) & " ? Export " & pairLetters(u)(1) & " (AL=Yes)")
+                                                        "Source: Donor " & pairLetters(u)(0) & " → Export " & pairLetters(u)(1) & " (AL=Yes)")
                                     Else
                                         outArr(outIdx, destOffset) = newVal
                                     End If
@@ -794,6 +882,38 @@ Private Sub EnsureMappedHeadersFromTool(wsTool As Worksheet, wsOut As Worksheet,
         End If
     Next i
 End Sub
+
+Private Function BuildHeaderOffsets(headerRow As Variant) As Object
+    Dim dict As Object: Set dict = CreateObject("Scripting.Dictionary")
+    dict.CompareMode = vbTextCompare
+    Dim c As Long
+    For c = LBound(headerRow, 2) To UBound(headerRow, 2)
+        Dim headerName As String: headerName = Trim$(CStr(headerRow(1, c)))
+        If Len(headerName) = 0 Then
+            Err.Raise vbObjectError + 1025, "BuildHeaderOffsets", _
+                      "Blank header detected in export column position " & CStr(c)
+        End If
+        If dict.Exists(headerName) Then
+            Err.Raise vbObjectError + 1026, "BuildHeaderOffsets", _
+                      "Duplicate header '" & headerName & "' detected in export columns."
+        End If
+        dict(headerName) = c
+    Next c
+    Set BuildHeaderOffsets = dict
+End Function
+
+Private Function HeaderOffset(headerMap As Object, headerName As String, context As String) As Long
+    Dim key As String: key = Trim$(CStr(headerName))
+    If Len(key) = 0 Then
+        Err.Raise vbObjectError + 1027, "HeaderOffset", _
+                  "Missing header name for " & context
+    End If
+    If Not headerMap.Exists(key) Then
+        Err.Raise vbObjectError + 1028, "HeaderOffset", _
+                  "Header '" & key & "' not found for " & context
+    End If
+    HeaderOffset = CLng(headerMap(key))
+End Function
 
 Private Function IsSkipValue(v As Variant) As Boolean
     On Error GoTo SafeFalse
