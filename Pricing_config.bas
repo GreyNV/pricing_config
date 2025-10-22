@@ -844,9 +844,14 @@ RowNext:
     Dim suggested As String: suggested = "PricingExport_" & Format(Now, "yyyymmdd_hhnnss") & ".xlsx"
     With Application.FileDialog(msoFileDialogSaveAs)
         .InitialFileName = suggested
+        .Filters.Clear
+        .Filters.Add "Excel Workbook (*.xlsx)", "*.xlsx"
+        .FilterIndex = 1
         If .Show = -1 Then
-            wbOut.SaveAs .SelectedItems(1), FileFormat:=xlOpenXMLWorkbook
-            MsgBox "Export saved: " & .SelectedItems(1), vbInformation
+            Dim savePath As String
+            savePath = EnsureXlsxExtension(.SelectedItems(1))
+            wbOut.SaveAs savePath, FileFormat:=xlOpenXMLWorkbook
+            MsgBox "Export saved: " & savePath, vbInformation
         Else
             MsgBox "Export left unsaved (workbook remains open).", vbInformation
         End If
@@ -967,6 +972,28 @@ Private Sub NoteReplace(ByVal tgt As Range, ByVal oldVal As Variant, ByVal newVa
 End Sub
 
 ' ========= UTILITIES =========
+Private Function EnsureXlsxExtension(ByVal filePath As String) As String
+    Dim slashPos As Long
+    slashPos = InStrRev(filePath, "\")
+    Dim altSlash As Long
+    altSlash = InStrRev(filePath, "/")
+    If altSlash > slashPos Then slashPos = altSlash
+
+    Dim dotPos As Long
+    dotPos = InStrRev(filePath, ".")
+    If dotPos = 0 Or dotPos < slashPos Then
+        EnsureXlsxExtension = filePath & ".xlsx"
+    Else
+        Dim ext As String
+        ext = Mid$(filePath, dotPos + 1)
+        If LCase$(ext) <> "xlsx" Then
+            EnsureXlsxExtension = Left$(filePath, dotPos - 1) & ".xlsx"
+        Else
+            EnsureXlsxExtension = filePath
+        End If
+    End If
+End Function
+
 Private Function UsedBounds(ws As Worksheet) As Variant
     If DEBUG_LOG Then Debug.Print "UsedBounds: ws=" & ws.Name
     Dim lastCell As Range
