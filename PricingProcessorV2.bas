@@ -1,4 +1,3 @@
-Attribute VB_Name = "PricingProcessorV2"
 '====================================================================
 ' VBA Pricing Tool (Simplified Module)
 ' Provides clear/upload buttons with in-memory processing of pricing
@@ -10,26 +9,26 @@ Option Explicit
 Private Const SHEET_CONFIG As String = "Pricing Configurations"
 Private Const SHEET_PREVIEW As String = "Result Preview"
 Private Const DATA_START_ROW As Long = 2
-Private Const CSV_TIMESTAMP_FORMAT As String = "yyyymmdd_hhnnss"
+Private Const TIMESTAMP_FORMAT As String = "yyyymmdd_hhnnss"
 Private Const DISABLE_NOTES As Boolean = False
 Private Const DEBUG_LOG As Boolean = False
+Private Const OUTPUT_SHEET_NAME As String = "Pricing Configurations - MARGOL"
 
 ' ========= COLUMN INDEX CACHE =========
-Private Const COL_ASIN As Long = 3      ' Column C
-Private Const COL_O As Long = 15        ' Column O
-Private Const COL_R As Long = 18        ' Column R
-Private Const COL_S As Long = 19        ' Column S
-Private Const COL_T As Long = 20        ' Column T
-Private Const COL_U As Long = 21        ' Column U
-Private Const COL_V As Long = 22        ' Column V
-Private Const COL_AH As Long = 34       ' Column AH
-Private Const COL_AI As Long = 35       ' Column AI
-Private Const COL_AJ As Long = 36       ' Column AJ
-Private Const COL_AK As Long = 37       ' Column AK
-Private Const COL_AL As Long = 38       ' Column AL
-Private Const COL_AM As Long = 39       ' Column AM
-Private Const COL_AO As Long = 41       ' Column AO
-Private Const COL_AY As Long = 51       ' Column AY
+Private Const COL_ASIN As Long = 3              ' ASIN
+Private Const COL_REPR As Long = 15             ' Reprice
+Private Const COL_FLOOR As Long = 20            ' Floor price
+Private Const COL_CEIL As Long = 22             ' Ceiling Price
+Private Const COL_REPR_METH As Long = 23        ' Repricer Method
+Private Const COL_REPR_STRAT As Long = 24       ' Repricer Strategy
+Private Const COL_REPR_STR_VAL As Long = 25     ' Repricer Strategy Value
+Private Const COL_SALE As Long = 40             ' On-Sale indicator
+Private Const COL_SALE_METH As Long = 41        ' Sale Repricer Method
+Private Const COL_SALE_STR As Long = 42         ' Sale Repricer Strategy
+Private Const COL_SALE_STR_VAL As Long = 43     ' Sale Repricer Strategy Value
+Private Const COL_SALE_START As Long = 44       ' Sale Start Date
+Private Const COL_SALE_END As Long = 46         ' Sale End Date
+
 
 ' ========= BUTTON ENTRY POINTS =========
 Public Sub Btn_ClearPricingDataV2()
@@ -72,7 +71,21 @@ Public Sub Btn_UploadAndProcessV2()
     Set wbSrc = Workbooks.Open(Filename:=csvPath, ReadOnly:=True)
 
     Dim srcWs As Worksheet
-    Set srcWs = wbSrc.Worksheets(1)
+    Dim ws As Worksheet
+    Set srcWs = Nothing
+
+    For Each ws In wbSrc.Worksheets
+        If InStr(1, ws.Name, "Pricing Configurations", vbTextCompare) > 0 Then
+            Set srcWs = ws
+            Exit For
+        End If
+    Next ws
+    
+    If srcWs Is Nothing Then
+        MsgBox "No worksheet with 'Pricing Configurations' found in the workbook.", vbExclamation
+        wbSrc.Close False
+        Exit Sub
+    End If
 
     Dim lastRow As Long, lastCol As Long
     lastRow = LastUsedRow(srcWs)
@@ -84,7 +97,7 @@ Public Sub Btn_UploadAndProcessV2()
     End If
 
     Dim sourceData As Variant
-    sourceData = srcWs.Range(srcWs.Cells(2, 1), srcWs.Cells(lastRow, lastCol)).Value
+    sourceData = srcWs.Range(srcWs.Cells(2, 1), srcWs.Cells(lastRow, lastCol)).value
 
 Cleanup:
     If Not wbSrc Is Nothing Then
@@ -106,7 +119,7 @@ Cleanup:
     ApplyPricingRules computedData, rowCount, colCount
 
     If rowCount > 0 And colCount > 0 Then
-        wsConfig.Cells(DATA_START_ROW, 1).Resize(rowCount, colCount).Value = computedData
+        wsConfig.Cells(DATA_START_ROW, 1).Resize(rowCount, colCount).value = computedData
     End If
 
     Dim changedRows As Collection
@@ -114,7 +127,7 @@ Cleanup:
 
     If Not changedRows Is Nothing Then
         If changedRows.Count > 0 Then
-            CreatePreviewCsv wsPreview
+            CreatePreviewFile wsPreview
         Else
             MsgBox "No changes were required for the uploaded data.", vbInformation
         End If
@@ -153,7 +166,7 @@ Private Sub ApplyPricingRules(ByRef data As Variant, ByVal rowCount As Long, ByV
     Next r
 
     Dim asinKey As Variant
-    For Each asinKey In asinMap.Keys
+    For Each asinKey In asinMap.keys
         ApplyRulesToGroup data, asinMap(asinKey)
     Next asinKey
 End Sub
@@ -168,19 +181,19 @@ Private Sub ApplyRulesToGroup(ByRef data As Variant, ByVal rows As Collection)
     Dim latestEndRow As Long
     Dim highestS As Double
     Dim hasS As Boolean
-    Dim minAH As Double
-    Dim minAHRow As Long
+    Dim minR As Double
+    Dim minRRow As Long
 
     For Each idx In rows
         Dim rowIndex As Long
         rowIndex = CLng(idx)
 
-        If IsYesValue(data(rowIndex, COL_AI)) Then
+        If IsYesValue(data(rowIndex, COL_SALE)) Then
             hasSaleYes = True
         End If
 
         Dim serialDate As Double
-        If TryGetSerialDate(data(rowIndex, COL_AO), serialDate) Then
+        If TryGetSerialDate(data(rowIndex, COL_SALE_END), serialDate) Then
             If Not hasEndDate Or serialDate > latestEndDate Then
                 latestEndDate = serialDate
                 latestEndRow = rowIndex
@@ -189,18 +202,20 @@ Private Sub ApplyRulesToGroup(ByRef data As Variant, ByVal rows As Collection)
         End If
 
         Dim sValue As Double
-        If TryGetNumeric(data(rowIndex, COL_S), sValue) Then
+        If TryGetNumeric(data(rowIndex, COL_CEIL), sValue) Then
             If Not hasS Or sValue > highestS Then
                 highestS = sValue
                 hasS = True
             End If
         End If
 
-        Dim ahValue As Double
-        If TryGetNumeric(data(rowIndex, COL_AH), ahValue) Then
-            If minAHRow = 0 Or ahValue < minAH Then
-                minAH = ahValue
-                minAHRow = rowIndex
+        Dim rValue As Double
+        If TryGetNumeric(data(rowIndex, COL_FLOOR), rValue) Then
+            If rValue > 0 Then
+                If minRRow = 0 Or rValue < minR Then
+                    minR = rValue
+                    minRRow = rowIndex
+                End If
             End If
         End If
     Next idx
@@ -216,7 +231,7 @@ Private Sub ApplyRulesToGroup(ByRef data As Variant, ByVal rows As Collection)
     If saleActive Then
         ApplySalePath data, rows, latestEndRow
     Else
-        ApplyBaselinePath data, rows, hasS, highestS, minAHRow
+        ApplyBaselinePath data, rows, hasS, highestS, minRRow
     End If
 End Sub
 
@@ -228,10 +243,10 @@ Private Sub ApplySalePath(ByRef data As Variant, ByVal rows As Collection, ByVal
     For Each idx In rows
         Dim rowIndex As Long
         rowIndex = CLng(idx)
-        data(rowIndex, COL_AI) = "Yes"
-        data(rowIndex, COL_AO) = data(donorRow, COL_AO)
-        data(rowIndex, COL_AM) = tomorrowDate
-        CopyColumns data, donorRow, rowIndex, Array(COL_AJ, COL_AK, COL_AL, COL_O, COL_R, COL_S, COL_T, COL_U, COL_V)
+        data(rowIndex, COL_SALE) = "Yes"
+        data(rowIndex, COL_SALE_END) = data(donorRow, COL_SALE_END)
+        data(rowIndex, COL_SALE_START) = tomorrowDate
+        CopyColumns data, donorRow, rowIndex, Array(COL_SALE_METH, COL_SALE_STR, COL_SALE_STR_VAL, COL_REPR, COL_FLOOR, COL_CEIL, COL_REPR_METH, COL_REPR_STRAT, COL_REPR_STR_VAL)
     Next idx
 End Sub
 
@@ -241,7 +256,7 @@ Private Sub ApplyBaselinePath(ByRef data As Variant, ByVal rows As Collection, _
 
     If hasS Then
         For Each idx In rows
-            data(CLng(idx), COL_S) = highestS
+            data(CLng(idx), COL_CEIL) = highestS
         Next idx
     End If
 
@@ -249,7 +264,7 @@ Private Sub ApplyBaselinePath(ByRef data As Variant, ByVal rows As Collection, _
         For Each idx In rows
             Dim rowIndex As Long
             rowIndex = CLng(idx)
-            CopyColumns data, donorRow, rowIndex, Array(COL_AJ, COL_AK, COL_AL, COL_O, COL_R, COL_T, COL_U, COL_V)
+            CopyColumns data, donorRow, rowIndex, Array(COL_SALE_METH, COL_SALE_STR, COL_SALE_STR_VAL, COL_REPR, COL_FLOOR, COL_REPR_METH, COL_REPR_STRAT, COL_REPR_STR_VAL)
         Next idx
     End If
 End Sub
@@ -271,7 +286,7 @@ Private Function BuildResultPreview(wsPreview As Worksheet, wsConfig As Workshee
     wsPreview.Cells.Clear
 
     If rowCount = 0 Or colCount = 0 Then
-        wsConfig.Rows(1).Copy Destination:=wsPreview.Rows(1)
+        wsConfig.rows(1).Copy Destination:=wsPreview.rows(1)
         Application.CutCopyMode = False
         Exit Function
     End If
@@ -290,15 +305,15 @@ Private Function BuildResultPreview(wsPreview As Worksheet, wsConfig As Workshee
         Next c
     Next r
 
-    wsConfig.Rows(1).Copy Destination:=wsPreview.Rows(1)
+    wsConfig.rows(1).Copy Destination:=wsPreview.rows(1)
     Application.CutCopyMode = False
-    wsConfig.Rows(1).Copy
-    wsPreview.Rows(1).PasteSpecial xlPasteColumnWidths
+    wsConfig.rows(1).Copy
+    wsPreview.rows(1).PasteSpecial xlPasteColumnWidths
     Application.CutCopyMode = False
 
     If rowCount > 0 Then
-        wsConfig.Rows(DATA_START_ROW).Copy
-        wsPreview.Rows(DATA_START_ROW).Resize(Application.Max(1, changes.Count)).PasteSpecial xlPasteFormats
+        wsConfig.rows(DATA_START_ROW).Copy
+        wsPreview.rows(DATA_START_ROW).Resize(Application.Max(1, changes.Count)).PasteSpecial xlPasteFormats
         Application.CutCopyMode = False
     End If
 
@@ -319,7 +334,7 @@ Private Function BuildResultPreview(wsPreview As Worksheet, wsConfig As Workshee
         End If
     Next r
 
-    wsPreview.Cells(DATA_START_ROW, 1).Resize(changes.Count, colCount).Value = outputData
+    wsPreview.Cells(DATA_START_ROW, 1).Resize(changes.Count, colCount).value = outputData
 
     outIndex = 0
     For r = 1 To rowCount
@@ -338,35 +353,39 @@ Private Function BuildResultPreview(wsPreview As Worksheet, wsConfig As Workshee
     Next r
 End Function
 
-Private Sub CreatePreviewCsv(wsPreview As Worksheet)
+Private Sub CreatePreviewFile(wsPreview As Worksheet)
     Dim usedRange As Range
-    Set usedRange = wsPreview.UsedRange
+    Set usedRange = wsPreview.usedRange
     If usedRange Is Nothing Then Exit Sub
-    If usedRange.Rows.Count <= 1 Then Exit Sub
+    If usedRange.rows.Count <= 1 Then Exit Sub
 
     Dim exportPath As String
     exportPath = ThisWorkbook.Path
     If Len(exportPath) = 0 Then exportPath = CurDir
     If Right$(exportPath, 1) <> "\" Then exportPath = exportPath & "\"
-    exportPath = exportPath & Format(Now, CSV_TIMESTAMP_FORMAT) & "_result_preview.csv"
+    exportPath = exportPath & Format(Now, TIMESTAMP_FORMAT) & "_result_preview.xlsx"
 
     wsPreview.Copy
     Dim wbExport As Workbook
     Set wbExport = ActiveWorkbook
-
+    
+    Dim wsExport As Worksheet
+    Set wsExport = wbExport.Sheets(1)
+    wsExport.Name = OUTPUT_SHEET_NAME
+    
     Application.DisplayAlerts = False
-    wbExport.SaveAs Filename:=exportPath, FileFormat:=xlCSV, CreateBackup:=False
+    wbExport.SaveAs Filename:=exportPath, FileFormat:=xlOpenXMLWorkbook, CreateBackup:=False
     Application.DisplayAlerts = True
 
     wbExport.Activate
     MsgBox "Results preview exported to:" & vbCrLf & exportPath & vbCrLf & _
-           "The CSV has been left open for review.", vbInformation
+           "The file has been left open for review.", vbInformation
 End Sub
 
 ' ========= HELPERS =========
 Private Sub EnsureColumnsPresent(ByVal colCount As Long)
     Dim requiredCols As Variant
-    requiredCols = Array(COL_ASIN, COL_O, COL_R, COL_S, COL_T, COL_U, COL_V, COL_AH, COL_AI, COL_AJ, COL_AK, COL_AL, COL_AM, COL_AO)
+    requiredCols = Array(COL_ASIN, COL_REPR, COL_FLOOR, COL_CEIL, COL_REPR_METH, COL_REPR_STRAT, COL_REPR_STR_VAL, COL_SALE, COL_SALE_METH, COL_SALE_STR, COL_SALE_STR_VAL, COL_SALE_START, COL_SALE_END)
 
     Dim i As Long
     For i = LBound(requiredCols) To UBound(requiredCols)
@@ -379,10 +398,10 @@ End Sub
 
 Private Function PickCsvPath() As String
     With Application.FileDialog(msoFileDialogFilePicker)
-        .Title = "Select Pricing Configuration CSV"
+        .Title = "Select Pricing Configuration File"
         .AllowMultiSelect = False
         .Filters.Clear
-        .Filters.Add "CSV Files", "*.csv"
+        .Filters.Add "Excel Files", "*.xls*"
         If .Show = -1 Then
             PickCsvPath = .SelectedItems(1)
         Else
@@ -570,4 +589,5 @@ Private Sub OptimizeEnd()
         .ScreenUpdating = True
     End With
 End Sub
+
 
